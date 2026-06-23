@@ -24,16 +24,60 @@ document.querySelectorAll(".tab").forEach((button) => {
   });
 });
 
+const singleImageInput = document.getElementById("image");
+const singlePreviewFrame = document.getElementById("singlePreviewFrame");
+const singlePreviewImage = document.getElementById("singlePreviewImage");
+const singlePreviewEmpty = document.getElementById("singlePreviewEmpty");
+const singlePreviewMeta = document.getElementById("singlePreviewMeta");
+let singlePreviewUrl = null;
+
+function formatFileSize(bytes) {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function resetSinglePreview() {
+  if (singlePreviewUrl) {
+    URL.revokeObjectURL(singlePreviewUrl);
+    singlePreviewUrl = null;
+  }
+  singlePreviewImage.removeAttribute("src");
+  singlePreviewImage.hidden = true;
+  singlePreviewEmpty.hidden = false;
+  singlePreviewFrame.classList.add("empty");
+  singlePreviewMeta.textContent = "No image selected.";
+}
+
+function updateSinglePreview(file) {
+  if (!file) {
+    resetSinglePreview();
+    return;
+  }
+  if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
+  singlePreviewUrl = URL.createObjectURL(file);
+  singlePreviewImage.src = singlePreviewUrl;
+  singlePreviewImage.hidden = false;
+  singlePreviewEmpty.hidden = true;
+  singlePreviewFrame.classList.remove("empty");
+  singlePreviewMeta.textContent = `${file.name} - ${formatFileSize(file.size)}`;
+}
+
+singleImageInput.addEventListener("change", () => updateSinglePreview(singleImageInput.files[0]));
+window.addEventListener("beforeunload", () => {
+  if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
+});
+
 async function checkHealth() {
   const target = document.getElementById("healthStatus");
   try {
     const response = await fetch(`${API_BASE_URL}/health`);
     if (!response.ok) throw new Error("API returned an error");
-    const payload = await response.json();
-    target.textContent = `${payload.status.toUpperCase()} - API connected`;
+    await response.json();
+    target.textContent = "Backend online";
     target.className = "api-status ok";
   } catch (error) {
-    target.textContent = "API not connected";
+    target.textContent = "Backend unavailable";
     target.className = "api-status error";
   }
 }
@@ -75,6 +119,7 @@ function renderVerification(result, target, verdictTarget = null, latencyTarget 
     latencyTarget.textContent = `Completed in ${result.latency_ms} ms.`;
   }
   target.innerHTML = "";
+  target.classList.remove("empty-result");
   result.results.forEach((item) => {
     const row = document.createElement("article");
     row.className = "field-result";
@@ -99,9 +144,17 @@ document.getElementById("singleForm").addEventListener("submit", async (event) =
   const form = event.currentTarget;
   const error = document.getElementById("singleError");
   const button = form.querySelector("button[type='submit']");
+  const verdict = document.getElementById("singleVerdict");
+  const latency = document.getElementById("singleLatency");
+  const results = document.getElementById("singleResults");
   error.textContent = "";
   button.disabled = true;
-  button.textContent = "Checking...";
+  button.textContent = "Reviewing...";
+  verdict.textContent = "Reviewing label";
+  verdict.className = "verdict working";
+  latency.textContent = "Extracting fields and comparing application data...";
+  results.innerHTML = "<p>Review in progress. Results will appear here shortly.</p>";
+  results.classList.add("empty-result");
 
   try {
     const image = form.image.files[0];
@@ -113,12 +166,16 @@ document.getElementById("singleForm").addEventListener("submit", async (event) =
     if (!response.ok) throw new Error(await readError(response));
     renderVerification(
       await response.json(),
-      document.getElementById("singleResults"),
-      document.getElementById("singleVerdict"),
-      document.getElementById("singleLatency")
+      results,
+      verdict,
+      latency
     );
   } catch (err) {
     error.textContent = err.message;
+    verdict.textContent = "Review paused";
+    verdict.className = "verdict neutral";
+    latency.textContent = "Fix the issue above and try again.";
+    results.innerHTML = "<p>No result was created for this submission.</p>";
   } finally {
     button.disabled = false;
     button.textContent = "Verify label";
@@ -149,7 +206,7 @@ document.getElementById("batchForm").addEventListener("submit", async (event) =>
   const progress = document.getElementById("batchProgress");
   const button = event.currentTarget.querySelector("button[type='submit']");
   error.textContent = "";
-  progress.textContent = "Checking batch...";
+  progress.textContent = "Reviewing batch labels...";
   button.disabled = true;
 
   try {
@@ -169,10 +226,10 @@ document.getElementById("batchForm").addEventListener("submit", async (event) =>
     const response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
     if (!response.ok) throw new Error(await readError(response));
     renderBatch(await response.json());
-    progress.textContent = "Batch complete.";
+    progress.textContent = "Batch review complete.";
   } catch (err) {
     error.textContent = err.message;
-    progress.textContent = "Batch stopped.";
+    progress.textContent = "Batch review paused.";
   } finally {
     button.disabled = false;
   }

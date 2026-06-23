@@ -8,11 +8,12 @@
   </head>
   <body>
     <header class="topbar">
-      <div>
+      <div class="brand-block">
         <p class="eyebrow">TTB Label Verification</p>
-        <h1>Check labels.</h1>
+        <h1>Review label data against application records</h1>
+        <p class="header-copy">Single and batch checks for spirits labels, field matches, and government warning text.</p>
       </div>
-      <div class="api-status" id="healthStatus" role="status">Checking API...</div>
+      <div class="api-status checking" id="healthStatus" role="status">Checking backend...</div>
     </header>
 
     <main>
@@ -25,8 +26,9 @@
         <div class="workspace">
           <form id="singleForm" class="input-panel" aria-describedby="singleError">
             <div class="section-heading">
-              <h2 id="singleHeading">Application data</h2>
-              <p>Enter the approved values and choose the label image.</p>
+              <p class="section-kicker">Step 1</p>
+              <h2 id="singleHeading">Application record</h2>
+              <p>Enter the approved values from the application, then choose the label image for review.</p>
             </div>
 
             <label class="file-picker">
@@ -48,14 +50,31 @@
             <button class="primary" type="submit">Verify label</button>
           </form>
 
-          <section class="result-panel" aria-live="polite">
-            <div class="section-heading">
-              <h2>Result</h2>
-              <p id="singleLatency">No check has run yet.</p>
-            </div>
-            <div id="singleVerdict" class="verdict neutral">Waiting</div>
-            <div id="singleResults" class="result-list"></div>
-          </section>
+          <div class="review-stack">
+            <section class="preview-panel" aria-live="polite">
+              <div class="section-heading">
+                <p class="section-kicker">Step 2</p>
+                <h2>Label preview</h2>
+                <p id="singlePreviewMeta">No image selected.</p>
+              </div>
+              <div class="preview-frame empty" id="singlePreviewFrame">
+                <span id="singlePreviewEmpty">Choose a label image to preview it here.</span>
+                <img id="singlePreviewImage" alt="Selected label preview" hidden />
+              </div>
+            </section>
+
+            <section class="result-panel" aria-live="polite">
+              <div class="section-heading">
+                <p class="section-kicker">Step 3</p>
+                <h2>Review result</h2>
+                <p id="singleLatency">Submit a label to see field-by-field results.</p>
+              </div>
+              <div id="singleVerdict" class="verdict neutral">Ready to review</div>
+              <div id="singleResults" class="result-list empty-result">
+                <p>The verdict and field comparisons will appear here after verification.</p>
+              </div>
+            </section>
+          </div>
         </div>
       </section>
 
@@ -63,7 +82,8 @@
         <div class="workspace">
           <form id="batchForm" class="input-panel" aria-describedby="batchError">
             <div class="section-heading">
-              <h2 id="batchHeading">Batch labels</h2>
+              <p class="section-kicker">Batch queue</p>
+              <h2 id="batchHeading">Multiple labels</h2>
               <p>Add one row per label. Each row needs an image and matching application values.</p>
             </div>
             <div id="batchRows" class="batch-rows"></div>
@@ -76,6 +96,7 @@
 
           <section class="result-panel" aria-live="polite">
             <div class="section-heading">
+              <p class="section-kicker">Review summary</p>
               <h2>Batch summary</h2>
               <p id="batchProgress">No batch has run yet.</p>
             </div>
