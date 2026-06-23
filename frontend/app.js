@@ -3,33 +3,52 @@ const CANONICAL_WARNING = "GOVERNMENT WARNING: (1) According to the Surgeon Gene
 
 const FIELD_LABELS = {
   brand_name: "Brand name",
-  class_type: "Class or type",
-  abv: "Alcohol content",
+  class_type: "Class / Type",
+  abv: "Alcohol by volume",
   net_contents: "Net contents",
   producer: "Producer",
   country_of_origin: "Country of origin",
   government_warning: "Government warning"
 };
 
-document.querySelectorAll('[name="government_warning"]').forEach((input) => {
-  input.value = CANONICAL_WARNING;
-});
+const singleForm = document.getElementById("singleView");
+const batchForm = document.getElementById("batchView");
+const resultsView = document.getElementById("resultsView");
+const batchResultsView = document.getElementById("batchResultsView");
+const singleImageInput = document.getElementById("image");
+const imagePreviewWrap = document.getElementById("imagePreviewWrap");
+const singlePreviewImage = document.getElementById("singlePreviewImage");
+const selectedFileName = document.getElementById("selectedFileName");
+let singlePreviewUrl = null;
+
+function setCanonicalWarnings() {
+  document.querySelectorAll('[name="government_warning"]').forEach((input) => {
+    input.value = CANONICAL_WARNING;
+  });
+}
+
+setCanonicalWarnings();
 
 document.querySelectorAll(".tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("active"));
-    document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.classList.remove("active");
+      tab.setAttribute("aria-selected", "false");
+    });
+    document.querySelectorAll(".view").forEach((view) => {
+      view.classList.remove("active");
+      view.hidden = true;
+    });
+    resultsView.hidden = true;
+    batchResultsView.hidden = true;
+
     button.classList.add("active");
-    document.getElementById(`${button.dataset.view}View`).classList.add("active");
+    button.setAttribute("aria-selected", "true");
+    const view = document.getElementById(`${button.dataset.view}View`);
+    view.hidden = false;
+    view.classList.add("active");
   });
 });
-
-const singleImageInput = document.getElementById("image");
-const singlePreviewFrame = document.getElementById("singlePreviewFrame");
-const singlePreviewImage = document.getElementById("singlePreviewImage");
-const singlePreviewEmpty = document.getElementById("singlePreviewEmpty");
-const singlePreviewMeta = document.getElementById("singlePreviewMeta");
-let singlePreviewUrl = null;
 
 function formatFileSize(bytes) {
   if (!bytes) return "0 KB";
@@ -43,10 +62,8 @@ function resetSinglePreview() {
     singlePreviewUrl = null;
   }
   singlePreviewImage.removeAttribute("src");
-  singlePreviewImage.hidden = true;
-  singlePreviewEmpty.hidden = false;
-  singlePreviewFrame.classList.add("empty");
-  singlePreviewMeta.textContent = "No image selected.";
+  imagePreviewWrap.hidden = true;
+  selectedFileName.textContent = "";
 }
 
 function updateSinglePreview(file) {
@@ -57,10 +74,8 @@ function updateSinglePreview(file) {
   if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
   singlePreviewUrl = URL.createObjectURL(file);
   singlePreviewImage.src = singlePreviewUrl;
-  singlePreviewImage.hidden = false;
-  singlePreviewEmpty.hidden = true;
-  singlePreviewFrame.classList.remove("empty");
-  singlePreviewMeta.textContent = `${file.name} - ${formatFileSize(file.size)}`;
+  imagePreviewWrap.hidden = false;
+  selectedFileName.textContent = `${file.name} - ${formatFileSize(file.size)}`;
 }
 
 singleImageInput.addEventListener("change", () => updateSinglePreview(singleImageInput.files[0]));
@@ -100,6 +115,16 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function showMessage(element, message) {
+  element.textContent = message;
+  element.hidden = false;
+}
+
+function hideMessage(element) {
+  element.textContent = "";
+  element.hidden = true;
+}
+
 async function readError(response) {
   try {
     const payload = await response.json();
@@ -112,74 +137,81 @@ async function readError(response) {
 function renderVerification(result, target, verdictTarget = null, latencyTarget = null) {
   if (verdictTarget) {
     const approved = result.overall_verdict === "APPROVED";
-    verdictTarget.textContent = approved ? "APPROVED" : "NEEDS REVIEW";
-    verdictTarget.className = `verdict ${approved ? "pass" : "fail"}`;
+    verdictTarget.className = `verdict-banner ${approved ? "approved" : "needs-review"}`;
+    verdictTarget.querySelector("h2").textContent = approved ? "APPROVED" : "NEEDS REVIEW";
   }
   if (latencyTarget) {
     latencyTarget.textContent = `Completed in ${result.latency_ms} ms.`;
   }
+
   target.innerHTML = "";
-  target.classList.remove("empty-result");
   result.results.forEach((item) => {
     const row = document.createElement("article");
-    row.className = "field-result";
+    row.className = `result-row ${item.status === "PASS" ? "pass" : "fail"}`;
     const label = FIELD_LABELS[item.field] || item.field;
     const failedMarkup = item.status === "FAIL"
-      ? `<div class="diff"><span><b>Expected:</b> ${escapeHtml(item.expected)}</span><span><b>Found:</b> ${escapeHtml(item.found || "Missing")}</span></div>`
+      ? `<div class="result-details"><p><b>Expected:</b> ${escapeHtml(item.expected)}</p><p><b>Found:</b> ${escapeHtml(item.found || "Missing")}</p></div>`
       : "";
     row.innerHTML = `
-      <div class="result-title">
-        <strong>${escapeHtml(label)}</strong>
-        <span class="badge ${item.status === "PASS" ? "pass" : "fail"}">${item.status}</span>
+      <div class="result-row-header">
+        <div>
+          <h3>${escapeHtml(label)}</h3>
+          <p class="detail">${escapeHtml(item.detail)}</p>
+        </div>
+        <span class="result-status ${item.status === "PASS" ? "pass" : "fail"}">${item.status}</span>
       </div>
-      <p class="detail">${escapeHtml(item.detail)}</p>
       ${failedMarkup}
     `;
     target.appendChild(row);
   });
 }
 
-document.getElementById("singleForm").addEventListener("submit", async (event) => {
+singleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const form = event.currentTarget;
   const error = document.getElementById("singleError");
-  const button = form.querySelector("button[type='submit']");
-  const verdict = document.getElementById("singleVerdict");
-  const latency = document.getElementById("singleLatency");
-  const results = document.getElementById("singleResults");
-  error.textContent = "";
+  const loading = document.getElementById("singleLoading");
+  const button = document.getElementById("verifyButton");
+  hideMessage(error);
+  showMessage(loading, "Reading the image and checking the fields. This may take a moment.");
+  resultsView.hidden = true;
   button.disabled = true;
-  button.textContent = "Reviewing...";
-  verdict.textContent = "Reviewing label";
-  verdict.className = "verdict working";
-  latency.textContent = "Extracting fields and comparing application data...";
-  results.innerHTML = "<p>Review in progress. Results will appear here shortly.</p>";
-  results.classList.add("empty-result");
+  button.textContent = "Verifying...";
 
   try {
-    const image = form.image.files[0];
+    const image = singleForm.querySelector('[name="image"]').files[0];
     if (!image) throw new Error("Choose a label image before submitting.");
     const data = new FormData();
     data.append("image", image);
-    data.append("application_data", JSON.stringify(collectApplicationData(form)));
+    data.append("application_data", JSON.stringify(collectApplicationData(singleForm)));
     const response = await fetch(`${API_BASE_URL}/verify`, { method: "POST", body: data });
     if (!response.ok) throw new Error(await readError(response));
     renderVerification(
       await response.json(),
-      results,
-      verdict,
-      latency
+      document.getElementById("singleResults"),
+      document.getElementById("singleVerdict"),
+      document.getElementById("singleLatency")
     );
+    singleForm.hidden = true;
+    singleForm.classList.remove("active");
+    resultsView.hidden = false;
+    resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
-    error.textContent = err.message;
-    verdict.textContent = "Review paused";
-    verdict.className = "verdict neutral";
-    latency.textContent = "Fix the issue above and try again.";
-    results.innerHTML = "<p>No result was created for this submission.</p>";
+    showMessage(error, err.message);
   } finally {
+    hideMessage(loading);
     button.disabled = false;
-    button.textContent = "Verify label";
+    button.textContent = "Verify Label";
   }
+});
+
+document.getElementById("resetButton").addEventListener("click", () => {
+  singleForm.reset();
+  setCanonicalWarnings();
+  resetSinglePreview();
+  hideMessage(document.getElementById("singleError"));
+  resultsView.hidden = true;
+  singleForm.hidden = false;
+  singleForm.classList.add("active");
 });
 
 const batchRows = document.getElementById("batchRows");
@@ -200,14 +232,16 @@ function addBatchRow() {
 document.getElementById("addBatchRow").addEventListener("click", addBatchRow);
 addBatchRow();
 
-document.getElementById("batchForm").addEventListener("submit", async (event) => {
+batchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const error = document.getElementById("batchError");
   const progress = document.getElementById("batchProgress");
-  const button = event.currentTarget.querySelector("button[type='submit']");
-  error.textContent = "";
-  progress.textContent = "Reviewing batch labels...";
+  const button = document.getElementById("batchSubmitButton");
+  hideMessage(error);
+  showMessage(progress, "Reading the label images and checking each record.");
+  batchResultsView.hidden = true;
   button.disabled = true;
+  button.textContent = "Verifying Batch...";
 
   try {
     const rows = [...batchRows.children];
@@ -226,12 +260,14 @@ document.getElementById("batchForm").addEventListener("submit", async (event) =>
     const response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
     if (!response.ok) throw new Error(await readError(response));
     renderBatch(await response.json());
-    progress.textContent = "Batch review complete.";
+    batchResultsView.hidden = false;
+    batchResultsView.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
-    error.textContent = err.message;
-    progress.textContent = "Batch review paused.";
+    showMessage(error, err.message);
   } finally {
+    hideMessage(progress);
     button.disabled = false;
+    button.textContent = "Verify Batch";
   }
 });
 
@@ -244,19 +280,28 @@ function renderBatch(result) {
   target.innerHTML = "";
   result.items.forEach((item, index) => {
     const wrapper = document.createElement("article");
-    wrapper.className = "batch-result";
+    wrapper.className = "batch-result-card";
     if (item.error) {
-      wrapper.innerHTML = `<strong>${escapeHtml(item.item_id)}</strong><span class="badge fail">ERROR</span><p class="detail">${escapeHtml(item.error)}</p>`;
+      wrapper.classList.add("fail");
+      wrapper.innerHTML = `
+        <div class="batch-result-header">
+          <h3>${escapeHtml(item.item_id)}</h3>
+          <span class="result-status fail">ERROR</span>
+        </div>
+        <p class="batch-card-summary">${escapeHtml(item.error)}</p>
+      `;
     } else {
       const nestedId = `batch-detail-${index}`;
       const approved = item.result.overall_verdict === "APPROVED";
+      wrapper.classList.add(approved ? "pass" : "fail");
       wrapper.innerHTML = `
-        <div class="result-title">
-          <strong>${escapeHtml(item.item_id)}</strong>
-          <span class="badge ${approved ? "pass" : "fail"}">${approved ? "APPROVED" : "NEEDS REVIEW"}</span>
+        <div class="batch-result-header">
+          <h3>${escapeHtml(item.item_id)}</h3>
+          <span class="result-status ${approved ? "pass" : "fail"}">${approved ? "APPROVED" : "NEEDS REVIEW"}</span>
         </div>
-        <button class="secondary detail-toggle" type="button" aria-expanded="false" aria-controls="${nestedId}">Show details</button>
-        <div id="${nestedId}" class="result-list nested" hidden></div>
+        <p class="batch-card-summary">${item.result.results.filter((field) => field.status === "FAIL").length} field(s) need attention.</p>
+        <button class="secondary-button compact detail-toggle" type="button" aria-expanded="false" aria-controls="${nestedId}">Show details</button>
+        <div id="${nestedId}" class="result-list batch-drilldown" hidden></div>
       `;
       const button = wrapper.querySelector("button");
       const nested = wrapper.querySelector(`#${nestedId}`);

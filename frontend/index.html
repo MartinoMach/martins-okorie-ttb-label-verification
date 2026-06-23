@@ -7,123 +7,160 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand-block">
-        <p class="eyebrow">TTB Label Verification</p>
-        <h1>Review label data against application records</h1>
-        <p class="header-copy">Single and batch checks for spirits labels, field matches, and government warning text.</p>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <div>
+          <p class="agency-label">Alcohol Label Review</p>
+          <h1 id="title">TTB Label Verification</h1>
+          <p class="summary">Choose a label image and enter the expected application information.</p>
+        </div>
+        <div class="api-status checking" id="healthStatus" role="status">Checking backend...</div>
       </div>
-      <div class="api-status checking" id="healthStatus" role="status">Checking backend...</div>
     </header>
 
-    <main>
-      <nav class="tabs" aria-label="Verification mode">
-        <button class="tab active" data-view="single" type="button" aria-controls="singleView">Single label</button>
-        <button class="tab" data-view="batch" type="button" aria-controls="batchView">Batch upload</button>
-      </nav>
+    <main class="shell">
+      <section class="panel" aria-labelledby="title">
+        <nav class="mode-tabs" role="tablist" aria-label="Verification mode">
+          <button
+            class="tab mode-tab active"
+            data-view="single"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="singleView"
+          >
+            Single Label
+          </button>
+          <button
+            class="tab mode-tab"
+            data-view="batch"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="batchView"
+          >
+            Batch
+          </button>
+        </nav>
 
-      <section class="view active" id="singleView" aria-labelledby="singleHeading">
-        <div class="workspace">
-          <form id="singleForm" class="input-panel" aria-describedby="singleError">
-            <div class="section-heading">
-              <p class="section-kicker">Step 1</p>
-              <h2 id="singleHeading">Application record</h2>
-              <p>Enter the approved values from the application, then choose the label image for review.</p>
-            </div>
+        <form id="singleView" class="view mode-panel active" aria-describedby="singleError" novalidate>
+          <div id="singleError" class="form-error" role="alert" hidden></div>
 
-            <label class="file-picker">
-              <span>Label image</span>
-              <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp" required />
-            </label>
-
-            <div class="fields">
-              <label>Brand name<input name="brand_name" autocomplete="off" required /></label>
-              <label>Class or type<input name="class_type" autocomplete="off" required /></label>
-              <label>Alcohol content<input name="abv" autocomplete="off" placeholder="45%" required /></label>
-              <label>Net contents<input name="net_contents" autocomplete="off" placeholder="750 mL" required /></label>
-              <label>Producer<input name="producer" autocomplete="off" required /></label>
-              <label>Country of origin<input name="country_of_origin" autocomplete="off" required /></label>
-              <label class="wide">Government warning<textarea name="government_warning" rows="5" required></textarea></label>
-            </div>
-
-            <p class="form-error" id="singleError" role="alert"></p>
-            <button class="primary" type="submit">Verify label</button>
-          </form>
-
-          <div class="review-stack">
-            <section class="preview-panel" aria-live="polite">
-              <div class="section-heading">
-                <p class="section-kicker">Step 2</p>
-                <h2>Label preview</h2>
-                <p id="singlePreviewMeta">No image selected.</p>
-              </div>
-              <div class="preview-frame empty" id="singlePreviewFrame">
-                <span id="singlePreviewEmpty">Choose a label image to preview it here.</span>
-                <img id="singlePreviewImage" alt="Selected label preview" hidden />
+          <div class="verification-layout">
+            <section class="form-section image-section" aria-labelledby="imageHeading">
+              <h2 id="imageHeading">Label Image</h2>
+              <label class="file-control" for="image">
+                <span class="file-label">Choose Label Image</span>
+                <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required />
+              </label>
+              <div id="imagePreviewWrap" class="image-preview-wrap" hidden>
+                <p id="selectedFileName" class="selected-file-name"></p>
+                <img id="singlePreviewImage" alt="Selected label preview" />
               </div>
             </section>
 
-            <section class="result-panel" aria-live="polite">
-              <div class="section-heading">
-                <p class="section-kicker">Step 3</p>
-                <h2>Review result</h2>
-                <p id="singleLatency">Submit a label to see field-by-field results.</p>
-              </div>
-              <div id="singleVerdict" class="verdict neutral">Ready to review</div>
-              <div id="singleResults" class="result-list empty-result">
-                <p>The verdict and field comparisons will appear here after verification.</p>
+            <section class="form-section fields-section" aria-labelledby="fieldsHeading">
+              <h2 id="fieldsHeading">Expected Application Information</h2>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="brandName">Brand Name</label>
+                  <input id="brandName" name="brand_name" type="text" autocomplete="off" required />
+                </div>
+                <div class="field">
+                  <label for="classType">Class / Type</label>
+                  <input id="classType" name="class_type" type="text" autocomplete="off" required />
+                </div>
+                <div class="field">
+                  <label for="abv">Alcohol By Volume</label>
+                  <input id="abv" name="abv" type="text" autocomplete="off" placeholder="45%" required />
+                </div>
+                <div class="field">
+                  <label for="netContents">Net Contents</label>
+                  <input id="netContents" name="net_contents" type="text" autocomplete="off" placeholder="750 mL" required />
+                </div>
+                <div class="field">
+                  <label for="producer">Producer</label>
+                  <input id="producer" name="producer" type="text" autocomplete="off" required />
+                </div>
+                <div class="field">
+                  <label for="countryOfOrigin">Country of Origin</label>
+                  <input id="countryOfOrigin" name="country_of_origin" type="text" autocomplete="off" required />
+                </div>
+                <div class="field field-full">
+                  <label for="governmentWarning">Government Warning</label>
+                  <textarea id="governmentWarning" name="government_warning" rows="5" required></textarea>
+                </div>
               </div>
             </section>
           </div>
-        </div>
-      </section>
 
-      <section class="view" id="batchView" aria-labelledby="batchHeading">
-        <div class="workspace">
-          <form id="batchForm" class="input-panel" aria-describedby="batchError">
-            <div class="section-heading">
-              <p class="section-kicker">Batch queue</p>
-              <h2 id="batchHeading">Multiple labels</h2>
-              <p>Add one row per label. Each row needs an image and matching application values.</p>
-            </div>
-            <div id="batchRows" class="batch-rows"></div>
-            <div class="actions">
-              <button class="secondary" id="addBatchRow" type="button">Add row</button>
-              <button class="primary" type="submit">Verify batch</button>
-            </div>
-            <p class="form-error" id="batchError" role="alert"></p>
-          </form>
+          <div id="singleLoading" class="loading-message" role="status" hidden>
+            Reading the image and checking the fields. This may take a moment.
+          </div>
 
-          <section class="result-panel" aria-live="polite">
-            <div class="section-heading">
-              <p class="section-kicker">Review summary</p>
-              <h2>Batch summary</h2>
-              <p id="batchProgress">No batch has run yet.</p>
-            </div>
+          <button id="verifyButton" class="primary-button" type="submit">Verify Label</button>
+        </form>
+
+        <form id="batchView" class="view mode-panel" aria-describedby="batchError" hidden novalidate>
+          <div id="batchError" class="form-error" role="alert" hidden></div>
+          <div id="batchRows" class="batch-rows"></div>
+          <button id="addBatchRow" class="secondary-button compact" type="button">Add Another Label</button>
+          <div id="batchProgress" class="loading-message" role="status" hidden></div>
+          <button id="batchSubmitButton" class="primary-button" type="submit">Verify Batch</button>
+        </form>
+
+        <section id="resultsView" class="results-view" aria-labelledby="resultsHeading" hidden>
+          <div id="singleVerdict" class="verdict-banner neutral">
+            <p class="verdict-label">Result</p>
+            <h2 id="resultsHeading">Ready to review</h2>
+            <p id="singleLatency">Submit a label to see field-by-field results.</p>
+          </div>
+          <div id="singleResults" class="result-list"></div>
+          <button id="resetButton" class="secondary-button" type="button">Check Another Label</button>
+        </section>
+
+        <section id="batchResultsView" class="results-view" aria-labelledby="batchResultsHeading" hidden>
+          <div id="batchSummaryBanner" class="verdict-banner batch-summary">
+            <p class="verdict-label">Batch Summary</p>
+            <h2 id="batchResultsHeading">Batch review complete</h2>
             <div class="summary">
               <div><strong id="passedCount">0</strong><span>Approved</span></div>
               <div><strong id="reviewCount">0</strong><span>Needs review</span></div>
               <div><strong id="totalCount">0</strong><span>Total</span></div>
             </div>
-            <div id="batchResults" class="result-list"></div>
-          </section>
-        </div>
+          </div>
+          <div id="batchResults" class="result-list"></div>
+        </section>
       </section>
     </main>
 
     <template id="batchRowTemplate">
       <fieldset class="batch-row">
         <legend>Label</legend>
-        <label>Label name<input name="item_id" autocomplete="off" placeholder="Label 1" /></label>
-        <label>Image<input name="batch_image" type="file" accept="image/png,image/jpeg,image/webp" required /></label>
-        <label>Brand name<input name="brand_name" autocomplete="off" required /></label>
-        <label>Class or type<input name="class_type" autocomplete="off" required /></label>
-        <label>Alcohol content<input name="abv" autocomplete="off" required /></label>
-        <label>Net contents<input name="net_contents" autocomplete="off" required /></label>
-        <label>Producer<input name="producer" autocomplete="off" required /></label>
-        <label>Country of origin<input name="country_of_origin" autocomplete="off" required /></label>
-        <label class="wide">Government warning<textarea name="government_warning" rows="4" required></textarea></label>
         <button class="remove" type="button" aria-label="Remove this batch row">Remove row</button>
+        <div class="batch-row-body">
+          <section class="form-section image-section" aria-label="Batch label image">
+            <label class="file-control">
+              <span class="file-label">Label Image</span>
+              <input name="batch_image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required />
+            </label>
+            <label>
+              <span>Label Name</span>
+              <input name="item_id" autocomplete="off" placeholder="Label 1" />
+            </label>
+          </section>
+          <section class="form-section fields-section" aria-label="Batch application information">
+            <div class="field-grid">
+              <label class="field">Brand Name<input name="brand_name" autocomplete="off" required /></label>
+              <label class="field">Class / Type<input name="class_type" autocomplete="off" required /></label>
+              <label class="field">Alcohol By Volume<input name="abv" autocomplete="off" required /></label>
+              <label class="field">Net Contents<input name="net_contents" autocomplete="off" required /></label>
+              <label class="field">Producer<input name="producer" autocomplete="off" required /></label>
+              <label class="field">Country of Origin<input name="country_of_origin" autocomplete="off" required /></label>
+              <label class="field field-full">Government Warning<textarea name="government_warning" rows="4" required></textarea></label>
+            </div>
+          </section>
+        </div>
       </fieldset>
     </template>
 
