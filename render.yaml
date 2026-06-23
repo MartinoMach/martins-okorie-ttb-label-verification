@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ttb-label-verification-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: VISION_MODEL
+        value: gpt-4o-mini
+      - key: FRONTEND_ORIGINS
+        value: http://localhost:5173
+      - key: MAX_IMAGE_BYTES
+        value: "8388608"
+      - key: VISION_TIMEOUT_SECONDS
+        value: "4.2"
+      - key: BATCH_CONCURRENCY
+        value: "3"
+

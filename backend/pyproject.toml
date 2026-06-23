@@ -1,0 +1,23 @@
+[project]
+name = "ttb-label-verification-api"
+version = "0.1.0"
+description = "FastAPI backend for stateless TTB label verification"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "pydantic==2.10.4",
+  "python-multipart==0.0.20",
+  "pillow==11.0.0",
+  "httpx==0.28.1"
+]
+
+[dependency-groups]
+dev = [
+  "pytest==8.3.4"
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+

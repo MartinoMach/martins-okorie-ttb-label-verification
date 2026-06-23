@@ -1,0 +1,9 @@
+{
+  "name": "ttb-label-verification-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "node build-config.mjs"
+  }
+}
+
