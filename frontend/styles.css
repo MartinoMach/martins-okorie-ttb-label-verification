@@ -216,6 +216,7 @@ textarea {
   background: #ffffff;
   color: var(--color-ink);
   font-size: 1.05rem;
+  font-weight: 400;
   line-height: 1.35;
   padding: 11px 12px;
 }
