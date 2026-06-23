@@ -1,26 +1,44 @@
 # TTB Label Verification
 
-Proof-of-concept web app for checking alcohol label images against structured TTB application data. The app is stateless: the browser sends an image plus application values to a FastAPI backend, the backend extracts label fields with a vision model, compares each field, and returns per-field `PASS` / `FAIL` plus an overall verdict.
+Proof-of-concept web app for checking alcohol label images against structured TTB application data. A plain JavaScript frontend sends an image plus application values to a FastAPI backend, the backend extracts label fields with an OpenAI vision model, compares each field, and returns per-field `PASS` / `FAIL` plus an overall verdict.
+
+## Final Submission Links
+
+Public repo: [https://github.com/AI-Native-2026-06-22-FedStack/chimaobi-okorie-ttb-label-verification](https://github.com/AI-Native-2026-06-22-FedStack/chimaobi-okorie-ttb-label-verification)
+
+Live frontend: [https://frontend-p3sgnpbn9-mach-tino.vercel.app/](https://frontend-p3sgnpbn9-mach-tino.vercel.app/)
+
+Backend API: [https://ttb-label-verification-api-zgnb.onrender.com](https://ttb-label-verification-api-zgnb.onrender.com)
+
+Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](https://ttb-label-verification-api-zgnb.onrender.com/health)
+
+## What Is Implemented
+
+- Single-label verification flow with image upload, seven application fields, loading state, readable errors, per-field results, and `APPROVED` / `NEEDS REVIEW` verdict.
+- Batch verification flow with multiple image/data pairs, bounded backend concurrency, per-item error isolation, summary counts, and drill-down field details.
+- FastAPI backend with `GET /health`, `POST /verify`, and `POST /verify/batch`.
+- OpenAI Responses API vision extraction with strict structured JSON output.
+- Image preprocessing that downscales and re-encodes uploads before model calls.
+- Stateless request handling with no database.
+- Tests that use a fake vision service so automated checks do not call the OpenAI API.
 
 ## Architecture
 
 - Frontend: plain HTML, CSS, and JavaScript hosted on Vercel.
 - Backend: Python FastAPI hosted on Render.
-- Vision: OpenAI Responses API image input with strict structured JSON output.
-- Storage: none. Each request is self-contained.
-- Secrets: environment variables only. No API keys are committed.
+- Vision service: OpenAI image input returning an `ExtractedLabel` schema.
+- Comparison engine: pure Python functions over typed Pydantic models.
+- Storage: none; each request is self-contained.
+- Secrets: environment variables only.
 
-## Live Demo
+## Data And Comparison Rules
 
-- Backend: https://ttb-label-verification-api-zgnb.onrender.com
-- Frontend: https://frontend-p3sgnpbn9-mach-tino.vercel.app
-
-## Comparison Rules
+The application checks seven fields: `brand_name`, `class_type`, `abv`, `net_contents`, `producer`, `country_of_origin`, and `government_warning`.
 
 - Brand name, class/type, producer: normalized fuzzy match at threshold `0.90`.
-- Country of origin: normalized aliases such as `USA`, `U.S.A.`, and `United States`.
+- Country of origin: normalized aliases such as `USA`, `U.S.A.`, `United States`, `UK`, and `United Kingdom`.
 - Alcohol content: numeric ABV normalization with `+/- 0.1` tolerance.
-- Net contents: unit normalization to milliliters.
+- Net contents: unit normalization to milliliters with `+/- 1.0 mL` tolerance.
 - Government warning: exact case-sensitive match after whitespace collapse only.
 - Verdict: any failed field returns `NEEDS_REVIEW`; all fields passing returns `APPROVED`.
 
@@ -29,15 +47,16 @@ Proof-of-concept web app for checking alcohol label images against structured TT
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements-dev.txt
-```
-
-Create local secrets from the example file:
-
-```bash
 cp .env.example .env
 ```
 
-Set `OPENAI_API_KEY` in `.env` before using real vision extraction.
+For real local vision extraction, add a fresh OpenAI API key to `.env`:
+
+```text
+OPENAI_API_KEY=your_new_key_here
+```
+
+The previously exposed key should be revoked and replaced.
 
 ## Run Locally
 
@@ -56,16 +75,7 @@ API_BASE_URL=http://localhost:8000 npm run build
 python3 -m http.server 5173
 ```
 
-Open `http://localhost:5173`.
-
-## Tests
-
-```bash
-cd backend
-../.venv/bin/pytest
-```
-
-The tests use a fake vision service and do not call the OpenAI API.
+Open [http://localhost:5173](http://localhost:5173).
 
 ## API
 
@@ -75,62 +85,69 @@ The tests use a fake vision service and do not call the OpenAI API.
 
 `POST /verify`
 
-- Multipart form field `image`: JPG, PNG, or WebP.
-- Multipart form field `application_data`: JSON matching the seven application fields.
-- Returns `VerificationResult` with field results, expected/found values, overall verdict, and `latency_ms`.
+- Multipart field `image`: JPG, PNG, or WebP.
+- Multipart field `application_data`: JSON matching the seven application fields.
+- Returns field results, expected/found values, overall verdict, and `latency_ms`.
 
 `POST /verify/batch`
 
-- Multipart form field `images`: repeated image files.
-- Multipart form field `items`: JSON array matching the image order. Each item has `id` and `application_data`.
-- Returns `BatchResult` with per-item result or error plus summary counts.
+- Multipart field `images`: repeated image files.
+- Multipart field `items`: JSON array matching image order. Each item has `id` and `application_data`.
+- Returns per-item result or error plus summary counts: `passed`, `needs_review`, and `total`.
 
 ## Deployment
 
 Render backend:
 
-1. Create a Render Blueprint from this repository.
-2. Render will use `render.yaml`.
-3. Set `OPENAI_API_KEY` as a secret environment variable in Render only.
-4. Keep `PYTHON_VERSION=3.13.5` so Render does not default to Python 3.14.
-5. Set `FRONTEND_ORIGINS` to the deployed Vercel URL if you use a custom frontend domain.
-6. Confirm `GET /health` returns `{"status":"ok","service":"ttb-label-verification-api"}`.
+- Uses `render.yaml`.
+- Keeps `PYTHON_VERSION=3.13.5` to avoid Python 3.14 package build issues.
+- Stores `OPENAI_API_KEY` as a secret environment variable in Render only.
+- Runs `pip install -r requirements.txt`.
+- Starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 
 Vercel frontend:
 
-1. Deploy the `frontend` directory.
-2. Set `API_BASE_URL=https://ttb-label-verification-api-zgnb.onrender.com` before the Vercel build.
-3. Confirm the Vercel page shows `OK - API connected`.
+- Deploys the `frontend` directory.
+- Build command: `npm run build`.
+- Output directory: `.`.
+- Build-time env var: `API_BASE_URL=https://ttb-label-verification-api-zgnb.onrender.com`.
 
-Secret placement:
+## Secret Handling
 
 - Render gets `OPENAI_API_KEY`.
 - Vercel gets `API_BASE_URL`.
 - Local development can use `.env`.
-- Never put an OpenAI API key in Vercel, GitHub, README, `.env.example`, `render.yaml`, or chat.
+- `.env.example` contains placeholders only.
+- Never put an OpenAI API key in README, GitHub, Vercel, `render.yaml`, `.env.example`, or chat.
 
-## Submission Audit
+## Tests And Submission Audit
 
-Run before final submission:
+Run backend tests:
+
+```bash
+cd backend
+../.venv/bin/pytest
+```
+
+Run the final audit:
 
 ```bash
 git status --short
 git grep -n -E 'sk-[A-Za-z0-9_-]{20,}' -- ':!.venv'
 git check-ignore .env
-cd backend && ../.venv/bin/pytest
+curl https://ttb-label-verification-api-zgnb.onrender.com/health
 ```
 
-Expected audit result:
+Expected results:
 
 - `.env` is ignored.
-- No OpenAI API key pattern is present in committed source.
+- No OpenAI API key pattern appears in committed source.
 - Backend tests pass.
+- Backend health returns `{"status":"ok","service":"ttb-label-verification-api"}`.
 
 ## Assumptions And Limitations
 
-- Real extraction requires `OPENAI_API_KEY` on the backend host.
-- Model can be changed with `VISION_MODEL`; default is `gpt-4o-mini`.
-- The frontend is intentionally plain HTML/CSS/JS for simple hosting and review.
-- Batch concurrency is bounded with `BATCH_CONCURRENCY` to reduce rate and cost pressure.
+- Real extraction requires a valid `OPENAI_API_KEY` on the backend host.
+- `VISION_MODEL` defaults to `gpt-4o-mini` and can be changed with an environment variable.
 - Government-warning OCR/model mistakes intentionally return `NEEDS_REVIEW` and surface extracted text for manual inspection.
-- Render CLI and Vercel CLI can be used for redeploys after initial account setup.
+- Batch concurrency is bounded with `BATCH_CONCURRENCY` to reduce rate and cost pressure.
