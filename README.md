@@ -234,6 +234,33 @@ Latest measurement on July 13, 2026:
 
 Render cold starts can push the first request past 10 seconds. In this measured run, steady-state single-label responses stayed under the 5-second target.
 
+## Live Smoke Check
+
+Run the live checklist against the deployed Render API:
+
+```bash
+python3 scripts/live_checklist.py
+```
+
+The script:
+
+- calls deployed `GET /health` and warns if it takes more than 5 seconds, which makes cold starts visible
+- posts a generated sample JPG plus a filled seven-field `application_data` payload to deployed `POST /verify`
+- asserts the response is HTTP 200, has `overall_verdict` of `APPROVED` or `NEEDS_REVIEW`, includes `latency_ms`, and returns seven field results
+- posts two generated sample JPGs to deployed `POST /verify/batch`
+- asserts the batch summary keys are exactly `passed`, `needs_review`, and `total`
+
+Expected output:
+
+```text
+health ok health_ms=123
+verify ok verdict=NEEDS_REVIEW latency_ms=4321 fields=7
+batch ok summary={'passed': 0, 'needs_review': 2, 'total': 2}
+live checklist passed
+```
+
+This check requires a valid `OPENAI_API_KEY` on the backend host. It does not require a local OpenAI key because it exercises the deployed service end to end.
+
 ## Deployment
 
 Render backend:
@@ -267,6 +294,13 @@ Run backend tests:
 ```bash
 cd backend
 ../.venv/bin/pytest
+```
+
+Run frontend smoke test:
+
+```bash
+cd frontend
+npm test
 ```
 
 Run the final audit:

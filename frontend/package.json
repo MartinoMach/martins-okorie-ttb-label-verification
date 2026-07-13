@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "build": "node build-config.mjs"
+    "build": "node build-config.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
   }
 }
-
