@@ -11,15 +11,13 @@ const FIELD_LABELS = {
   government_warning: "Government warning"
 };
 
-const singleForm = document.getElementById("singleView");
-const batchForm = document.getElementById("batchView");
+const verifyForm = document.getElementById("verifyForm");
 const resultsView = document.getElementById("resultsView");
 const batchResultsView = document.getElementById("batchResultsView");
-const singleImageInput = document.getElementById("image");
-const imagePreviewWrap = document.getElementById("imagePreviewWrap");
-const singlePreviewImage = document.getElementById("singlePreviewImage");
-const selectedFileName = document.getElementById("selectedFileName");
-let singlePreviewUrl = null;
+const batchRows = document.getElementById("batchRows");
+const rowTemplate = document.getElementById("batchRowTemplate");
+const submitButton = document.getElementById("submitButton");
+const COLD_START_MESSAGE = "Backend waking up - Render free tier may take up to 30 seconds on first request.";
 
 function setCanonicalWarnings() {
   document.querySelectorAll('[name="government_warning"]').forEach((input) => {
@@ -27,60 +25,47 @@ function setCanonicalWarnings() {
   });
 }
 
-setCanonicalWarnings();
-
-document.querySelectorAll(".tab").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((tab) => {
-      tab.classList.remove("active");
-      tab.setAttribute("aria-selected", "false");
-    });
-    document.querySelectorAll(".view").forEach((view) => {
-      view.classList.remove("active");
-      view.hidden = true;
-    });
-    resultsView.hidden = true;
-    batchResultsView.hidden = true;
-
-    button.classList.add("active");
-    button.setAttribute("aria-selected", "true");
-    const view = document.getElementById(`${button.dataset.view}View`);
-    view.hidden = false;
-    view.classList.add("active");
-  });
-});
-
 function formatFileSize(bytes) {
   if (!bytes) return "0 KB";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function resetSinglePreview() {
-  if (singlePreviewUrl) {
-    URL.revokeObjectURL(singlePreviewUrl);
-    singlePreviewUrl = null;
-  }
-  singlePreviewImage.removeAttribute("src");
-  imagePreviewWrap.hidden = true;
-  selectedFileName.textContent = "";
+function updateSubmitButton() {
+  submitButton.textContent = batchRows.children.length > 1 ? "Verify batch" : "Verify label";
+  batchRows.querySelectorAll(".remove").forEach((button) => {
+    button.hidden = batchRows.children.length === 1;
+  });
 }
 
-function updateSinglePreview(file) {
+function resetRowPreview(row) {
+  const previewUrl = row.dataset.previewUrl;
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+    delete row.dataset.previewUrl;
+  }
+  row.querySelector(".selected-file-name").textContent = "";
+  const preview = row.querySelector(".label-preview-image");
+  preview.removeAttribute("src");
+  preview.hidden = true;
+}
+
+function updateRowPreview(row, file) {
   if (!file) {
-    resetSinglePreview();
+    resetRowPreview(row);
     return;
   }
-  if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
-  singlePreviewUrl = URL.createObjectURL(file);
-  singlePreviewImage.src = singlePreviewUrl;
-  imagePreviewWrap.hidden = false;
-  selectedFileName.textContent = `${file.name} - ${formatFileSize(file.size)}`;
+  resetRowPreview(row);
+  const previewUrl = URL.createObjectURL(file);
+  row.dataset.previewUrl = previewUrl;
+  const preview = row.querySelector(".label-preview-image");
+  preview.src = previewUrl;
+  preview.hidden = false;
+  row.querySelector(".selected-file-name").textContent = `${file.name} - ${formatFileSize(file.size)}`;
 }
 
-singleImageInput.addEventListener("change", () => updateSinglePreview(singleImageInput.files[0]));
 window.addEventListener("beforeunload", () => {
-  if (singlePreviewUrl) URL.revokeObjectURL(singlePreviewUrl);
+  batchRows.querySelectorAll(".batch-row").forEach(resetRowPreview);
 });
 
 async function checkHealth() {
@@ -97,7 +82,14 @@ async function checkHealth() {
 function collectApplicationData(scope) {
   const data = {};
   Object.keys(FIELD_LABELS).forEach((name) => {
-    data[name] = scope.querySelector(`[name="${name}"]`).value.trim();
+    const value = scope.querySelector(`[name="${name}"]`).value.trim();
+    if (name === "abv") {
+      data[name] = `${value}%`;
+    } else if (name === "net_contents") {
+      data[name] = `${value} mL`;
+    } else {
+      data[name] = value;
+    }
   });
   return data;
 }
@@ -120,6 +112,18 @@ function showMessage(element, message) {
 function hideMessage(element) {
   element.textContent = "";
   element.hidden = true;
+}
+
+function startLoading(element, message) {
+  showMessage(element, message);
+  return window.setTimeout(() => {
+    showMessage(element, COLD_START_MESSAGE);
+  }, 3000);
+}
+
+function stopLoading(element, timer) {
+  window.clearTimeout(timer);
+  hideMessage(element);
 }
 
 async function readError(response) {
@@ -163,56 +167,16 @@ function renderVerification(result, target, verdictTarget = null, latencyTarget 
   });
 }
 
-singleForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const error = document.getElementById("singleError");
-  const loading = document.getElementById("singleLoading");
-  const button = document.getElementById("verifyButton");
-  hideMessage(error);
-  showMessage(loading, "Reading the label and comparing the application record.");
-  resultsView.hidden = true;
-  button.disabled = true;
-  button.textContent = "Verifying...";
-
-  try {
-    const image = singleForm.querySelector('[name="image"]').files[0];
-    if (!image) throw new Error("Choose a label image before submitting.");
-    const data = new FormData();
-    data.append("image", image);
-    data.append("application_data", JSON.stringify(collectApplicationData(singleForm)));
-    const response = await fetch(`${API_BASE_URL}/verify`, { method: "POST", body: data });
-    if (!response.ok) throw new Error(await readError(response));
-    renderVerification(
-      await response.json(),
-      document.getElementById("singleResults"),
-      document.getElementById("singleVerdict"),
-      document.getElementById("singleLatency")
-    );
-    singleForm.hidden = true;
-    singleForm.classList.remove("active");
-    resultsView.hidden = false;
-    resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (err) {
-    showMessage(error, err.message);
-  } finally {
-    hideMessage(loading);
-    button.disabled = false;
-    button.textContent = "Verify label";
-  }
-});
-
 document.getElementById("resetButton").addEventListener("click", () => {
-  singleForm.reset();
+  verifyForm.reset();
   setCanonicalWarnings();
-  resetSinglePreview();
-  hideMessage(document.getElementById("singleError"));
+  batchRows.querySelectorAll(".batch-row").forEach(resetRowPreview);
+  hideMessage(document.getElementById("formError"));
   resultsView.hidden = true;
-  singleForm.hidden = false;
-  singleForm.classList.add("active");
+  batchResultsView.hidden = true;
+  verifyForm.hidden = false;
+  verifyForm.classList.add("active");
 });
-
-const batchRows = document.getElementById("batchRows");
-const rowTemplate = document.getElementById("batchRowTemplate");
 
 function addBatchRow() {
   const row = rowTemplate.content.firstElementChild.cloneNode(true);
@@ -220,51 +184,85 @@ function addBatchRow() {
   row.querySelector("legend").textContent = `Label ${index}`;
   row.querySelector('[name="item_id"]').value = `Label ${index}`;
   row.querySelector('[name="government_warning"]').value = CANONICAL_WARNING;
+  row.querySelector('[name="batch_image"]').addEventListener("change", (event) => {
+    updateRowPreview(row, event.target.files[0]);
+  });
   row.querySelector(".remove").addEventListener("click", () => {
+    resetRowPreview(row);
     row.remove();
+    updateSubmitButton();
   });
   batchRows.appendChild(row);
+  updateSubmitButton();
 }
 
 document.getElementById("addBatchRow").addEventListener("click", addBatchRow);
 addBatchRow();
 
-batchForm.addEventListener("submit", async (event) => {
+async function submitSingle(row) {
+  const image = row.querySelector('[name="batch_image"]').files[0];
+  if (!image) throw new Error("Choose a label image before submitting.");
+  const data = new FormData();
+  data.append("image", image);
+  data.append("application_data", JSON.stringify(collectApplicationData(row)));
+  const response = await fetch(`${API_BASE_URL}/verify`, { method: "POST", body: data });
+  if (!response.ok) throw new Error(await readError(response));
+  renderVerification(
+    await response.json(),
+    document.getElementById("singleResults"),
+    document.getElementById("singleVerdict"),
+    document.getElementById("singleLatency")
+  );
+  resultsView.hidden = false;
+  resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function submitBatch(rows) {
+  const data = new FormData();
+  const items = rows.map((row, index) => {
+    const file = row.querySelector('[name="batch_image"]').files[0];
+    if (!file) throw new Error(`Choose an image for Label ${index + 1}.`);
+    data.append("images", file);
+    return {
+      id: row.querySelector('[name="item_id"]').value.trim() || `Label ${index + 1}`,
+      application_data: collectApplicationData(row)
+    };
+  });
+  data.append("items", JSON.stringify(items));
+  const response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
+  if (!response.ok) throw new Error(await readError(response));
+  renderBatch(await response.json());
+  batchResultsView.hidden = false;
+  batchResultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+verifyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const error = document.getElementById("batchError");
-  const progress = document.getElementById("batchProgress");
-  const button = document.getElementById("batchSubmitButton");
+  const error = document.getElementById("formError");
+  const progress = document.getElementById("verifyProgress");
+  const rows = [...batchRows.children];
   hideMessage(error);
-  showMessage(progress, "Reading the labels and comparing each application record.");
+  const loadingTimer = startLoading(progress, "Reading the label and comparing the application record.");
+  resultsView.hidden = true;
   batchResultsView.hidden = true;
-  button.disabled = true;
-  button.textContent = "Verifying batch...";
+  submitButton.disabled = true;
+  submitButton.textContent = rows.length > 1 ? "Verifying batch..." : "Verifying...";
 
   try {
-    const rows = [...batchRows.children];
     if (!rows.length) throw new Error("Add at least one batch row.");
-    const data = new FormData();
-    const items = rows.map((row, index) => {
-      const file = row.querySelector('[name="batch_image"]').files[0];
-      if (!file) throw new Error(`Choose an image for Label ${index + 1}.`);
-      data.append("images", file);
-      return {
-        id: row.querySelector('[name="item_id"]').value.trim() || `Label ${index + 1}`,
-        application_data: collectApplicationData(row)
-      };
-    });
-    data.append("items", JSON.stringify(items));
-    const response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
-    if (!response.ok) throw new Error(await readError(response));
-    renderBatch(await response.json());
-    batchResultsView.hidden = false;
-    batchResultsView.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (rows.length === 1) {
+      await submitSingle(rows[0]);
+    } else {
+      await submitBatch(rows);
+    }
+    verifyForm.hidden = true;
+    verifyForm.classList.remove("active");
   } catch (err) {
     showMessage(error, err.message);
   } finally {
-    hideMessage(progress);
-    button.disabled = false;
-    button.textContent = "Verify batch";
+    stopLoading(progress, loadingTimer);
+    submitButton.disabled = false;
+    updateSubmitButton();
   }
 });
 

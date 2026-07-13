@@ -14,8 +14,8 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 
 ## What Is Implemented
 
-- Single-label verification flow with image upload, seven application fields, loading state, readable errors, per-field results, and `APPROVED` / `NEEDS REVIEW` verdict.
-- Batch verification flow with multiple image/data pairs, bounded backend concurrency, per-item error isolation, summary counts, and drill-down field details.
+- Unified upload flow with one label card by default; one card submits to `/verify`, and adding more cards submits to `/verify/batch`.
+- Batch verification has bounded backend concurrency, an env-configurable item cap, per-item error isolation, summary counts, and drill-down field details.
 - FastAPI backend with `GET /health`, `POST /verify`, and `POST /verify/batch`.
 - OpenAI Responses API vision extraction with strict structured JSON output.
 - Image preprocessing that downscales and re-encodes uploads before model calls.
@@ -41,6 +41,7 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 | `MAX_IMAGE_BYTES` | No | `8388608` | Per-image upload size cap in bytes. |
 | `VISION_TIMEOUT_SECONDS` | No | `4.2` | `httpx` timeout for the OpenAI request. |
 | `BATCH_CONCURRENCY` | No | `3` | Semaphore limit for concurrent batch items. |
+| `BATCH_MAX_ITEMS` | No | `10` | Maximum labels accepted in one batch request. |
 
 ## Data And Comparison Rules
 

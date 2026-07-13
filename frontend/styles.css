@@ -129,30 +129,6 @@ h3 {
   box-shadow: var(--shadow-panel);
 }
 
-.mode-tabs {
-  display: flex;
-  gap: var(--space-1);
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: var(--space-6);
-}
-
-.mode-tab {
-  min-height: 48px;
-  margin-bottom: -1px;
-  border: 1px solid var(--color-border);
-  border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--color-surface-alt);
-  color: var(--color-navy-dark);
-  font-size: 1.05rem;
-}
-
-.mode-tab.active {
-  background: var(--color-surface);
-  border-top: 4px solid var(--color-gold);
-  color: var(--color-ink);
-}
-
 .verification-layout,
 .batch-row-body {
   display: grid;
@@ -590,16 +566,6 @@ button:disabled {
 
   .panel {
     padding: var(--space-4);
-  }
-
-  .mode-tabs {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .mode-tab {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
   }
 
   .field-grid,

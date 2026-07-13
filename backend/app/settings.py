@@ -16,7 +16,7 @@ class Settings:
     max_image_bytes: int = int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
     vision_timeout_seconds: float = float(os.getenv("VISION_TIMEOUT_SECONDS", "4.2"))
     batch_concurrency: int = int(os.getenv("BATCH_CONCURRENCY", "3"))
+    batch_max_items: int = int(os.getenv("BATCH_MAX_ITEMS", "10"))
 
 
 settings = Settings()
-

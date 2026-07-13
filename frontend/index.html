@@ -19,93 +19,12 @@
 
     <main class="shell">
       <section class="panel" aria-labelledby="title">
-        <nav class="mode-tabs" role="tablist" aria-label="Verification mode">
-          <button
-            class="tab mode-tab active"
-            data-view="single"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            aria-controls="singleView"
-          >
-            Single label
-          </button>
-          <button
-            class="tab mode-tab"
-            data-view="batch"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="batchView"
-          >
-            Batch review
-          </button>
-        </nav>
-
-        <form id="singleView" class="view mode-panel active" aria-describedby="singleError" novalidate>
-          <div id="singleError" class="form-error" role="alert" hidden></div>
-
-          <div class="verification-layout">
-            <section class="form-section image-section" aria-labelledby="imageHeading">
-              <h2 id="imageHeading">Upload label</h2>
-              <label class="file-control" for="image">
-                <span class="file-label">Choose label image</span>
-                <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required />
-              </label>
-              <div id="imagePreviewWrap" class="image-preview-wrap" hidden>
-                <p id="selectedFileName" class="selected-file-name"></p>
-                <img id="singlePreviewImage" alt="Selected label preview" />
-              </div>
-            </section>
-
-            <section class="form-section fields-section" aria-labelledby="fieldsHeading">
-              <h2 id="fieldsHeading">Application record</h2>
-              <div class="field-grid">
-                <div class="field">
-                  <label for="brandName">Brand name</label>
-                  <input id="brandName" name="brand_name" type="text" autocomplete="off" placeholder="EX: Sunrise Reserve" required />
-                </div>
-                <div class="field">
-                  <label for="classType">Class / type</label>
-                  <input id="classType" name="class_type" type="text" autocomplete="off" placeholder="EX: Bourbon Whiskey" required />
-                </div>
-                <div class="field">
-                  <label for="abv">Alcohol by volume</label>
-                  <input id="abv" name="abv" type="text" autocomplete="off" placeholder="EX: 45%" required />
-                </div>
-                <div class="field">
-                  <label for="netContents">Net contents</label>
-                  <input id="netContents" name="net_contents" type="text" autocomplete="off" placeholder="EX: 750 mL" required />
-                </div>
-                <div class="field">
-                  <label for="producer">Producer</label>
-                  <input id="producer" name="producer" type="text" autocomplete="off" placeholder="EX: Heritage Distilling LLC" required />
-                </div>
-                <div class="field">
-                  <label for="countryOfOrigin">Country of origin</label>
-                  <input id="countryOfOrigin" name="country_of_origin" type="text" autocomplete="off" placeholder="EX: United States" required />
-                </div>
-                <div class="field field-full">
-                  <label for="governmentWarning">Government warning</label>
-                  <textarea id="governmentWarning" name="government_warning" rows="5" required></textarea>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div id="singleLoading" class="loading-message" role="status" hidden>
-            Reading the image and checking the fields. This may take a moment.
-          </div>
-
-          <button id="verifyButton" class="primary-button" type="submit">Verify label</button>
-        </form>
-
-        <form id="batchView" class="view mode-panel" aria-describedby="batchError" hidden novalidate>
-          <div id="batchError" class="form-error" role="alert" hidden></div>
+        <form id="verifyForm" class="view mode-panel active" aria-describedby="formError" novalidate>
+          <div id="formError" class="form-error" role="alert" hidden></div>
           <div id="batchRows" class="batch-rows"></div>
           <button id="addBatchRow" class="secondary-button compact" type="button">Add another label</button>
-          <div id="batchProgress" class="loading-message" role="status" hidden></div>
-          <button id="batchSubmitButton" class="primary-button" type="submit">Verify batch</button>
+          <div id="verifyProgress" class="loading-message" role="status" hidden></div>
+          <button id="submitButton" class="primary-button" type="submit">Verify label</button>
         </form>
 
         <section id="resultsView" class="results-view" aria-labelledby="resultsHeading" hidden>
@@ -141,7 +60,7 @@
           <section class="form-section image-section" aria-label="Batch label image">
             <label class="file-control">
               <span class="file-label">Label image</span>
-              <input name="batch_image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required />
+              <input name="batch_image" type="file" accept="image/*" required />
             </label>
             <label>
               <span>Label name</span>
@@ -152,8 +71,8 @@
             <div class="field-grid">
               <label class="field">Brand name<input name="brand_name" autocomplete="off" placeholder="EX: Sunrise Reserve" required /></label>
               <label class="field">Class / type<input name="class_type" autocomplete="off" placeholder="EX: Bourbon Whiskey" required /></label>
-              <label class="field">Alcohol by volume<input name="abv" autocomplete="off" placeholder="EX: 45%" required /></label>
-              <label class="field">Net contents<input name="net_contents" autocomplete="off" placeholder="EX: 750 mL" required /></label>
+              <label class="field">Alcohol by volume<input name="abv" type="number" min="0" max="100" step="0.1" autocomplete="off" placeholder="45" required /></label>
+              <label class="field">Net contents (mL)<input name="net_contents" type="number" min="1" step="1" autocomplete="off" placeholder="750" required /></label>
               <label class="field">Producer<input name="producer" autocomplete="off" placeholder="EX: Heritage Distilling LLC" required /></label>
               <label class="field">Country of origin<input name="country_of_origin" autocomplete="off" placeholder="EX: United States" required /></label>
               <label class="field field-full">Government warning<textarea name="government_warning" rows="4" required></textarea></label>

@@ -8,6 +8,7 @@ from PIL import Image
 
 from app.main import app
 from app.models import CANONICAL_GOVERNMENT_WARNING, ExtractedLabel
+from app.settings import settings
 from app.vision import (
     FakeVisionService,
     MALFORMED_OUTPUT_NOTE,
@@ -247,3 +248,17 @@ def test_batch_rejects_invalid_items_json_readably():
     )
     assert response.status_code == 400
     assert "valid JSON" in response.json()["detail"]
+
+
+def test_batch_rejects_too_many_items_before_vision_runs():
+    app.state.vision_service = FakeVisionService(error=AssertionError("vision should not run"))
+    client = TestClient(app)
+    count = settings.batch_max_items + 1
+    items = [{"id": f"Label {index}", "application_data": application_data()} for index in range(count)]
+    response = client.post(
+        "/verify/batch",
+        data={"items": json.dumps(items)},
+        files=[("images", (f"{index}.png", image_bytes(), "image/png")) for index in range(count)],
+    )
+    assert response.status_code == 413
+    assert f"{settings.batch_max_items} labels or fewer" in response.json()["detail"]

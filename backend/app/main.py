@@ -131,6 +131,11 @@ def _parse_batch_items(value: str) -> list[dict]:
         raise HTTPException(status_code=400, detail="Batch items must be valid JSON.") from exc
     if not isinstance(parsed, list) or not parsed:
         raise HTTPException(status_code=400, detail="Batch must include at least one label item.")
+    if len(parsed) > settings.batch_max_items:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Batch is too large. Submit {settings.batch_max_items} labels or fewer at a time.",
+        )
     if not all(isinstance(item, dict) for item in parsed):
         raise HTTPException(status_code=400, detail="Each batch item must be an object.")
     return parsed
