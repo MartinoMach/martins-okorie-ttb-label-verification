@@ -102,7 +102,7 @@ Open [http://localhost:5173](http://localhost:5173).
 Render backend:
 
 - Uses `render.yaml`.
-- Keeps `PYTHON_VERSION=3.13.5` to avoid Python 3.14 package build issues.
+- Keeps `PYTHON_VERSION=3.12.8` to match the Python 3.12+ project requirement.
 - Stores `OPENAI_API_KEY` as a secret environment variable in Render only.
 - Runs `pip install -r requirements.txt`.
 - Starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
@@ -113,6 +113,7 @@ Vercel frontend:
 - Build command: `npm run build`.
 - Output directory: `.`.
 - Build-time env var: `API_BASE_URL=https://ttb-label-verification-api-zgnb.onrender.com`.
+- Production deployment protection must allow public access without Vercel SSO.
 
 ## Secret Handling
 
@@ -136,14 +137,19 @@ Run the final audit:
 ```bash
 git status --short
 git grep -n -E 'sk-[A-Za-z0-9_-]{20,}' -- ':!.venv'
+git grep -n -E 'AIza[0-9A-Za-z_-]{20,}' -- ':!.venv'
+git log --all -p -G 'sk-[A-Za-z0-9_-]{20,}'
+git log --all -p -G 'AIza[0-9A-Za-z_-]{20,}'
 git check-ignore .env
+curl -sIL https://ttb-label-verification-frontend-zgnb.vercel.app/
 curl https://ttb-label-verification-api-zgnb.onrender.com/health
 ```
 
 Expected results:
 
 - `.env` is ignored.
-- No OpenAI API key pattern appears in committed source.
+- No OpenAI or Google-style API key pattern appears in committed source or git history.
+- Frontend URL returns a public page, not a Vercel SSO redirect.
 - Backend tests pass.
 - Backend health returns `{"status":"ok","service":"ttb-label-verification-api"}`.
 
