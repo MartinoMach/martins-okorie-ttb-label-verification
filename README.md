@@ -25,11 +25,22 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 ## Architecture
 
 - Frontend: plain HTML, CSS, and JavaScript hosted on Vercel.
-- Backend: Python FastAPI hosted on Render.
+- Backend: Python 3.12+ FastAPI hosted on Render, with Render pinned to Python 3.12.8.
 - Vision service: OpenAI image input returning an `ExtractedLabel` schema.
 - Comparison engine: pure Python functions over typed Pydantic models.
 - Storage: none; each request is self-contained.
 - Secrets: environment variables only.
+
+## Environment Variables
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | Yes for real extraction | None | OpenAI API key for the Responses endpoint. |
+| `VISION_MODEL` | No | `gpt-4o-mini` | OpenAI model used for label extraction. |
+| `FRONTEND_ORIGINS` | No | `http://localhost:5173,http://localhost:8000` | CORS allow-list for browser origins. |
+| `MAX_IMAGE_BYTES` | No | `8388608` | Per-image upload size cap in bytes. |
+| `VISION_TIMEOUT_SECONDS` | No | `4.2` | `httpx` timeout for the OpenAI request. |
+| `BATCH_CONCURRENCY` | No | `3` | Semaphore limit for concurrent batch items. |
 
 ## Data And Comparison Rules
 
@@ -91,11 +102,135 @@ Open [http://localhost:5173](http://localhost:5173).
 - Multipart field `application_data`: JSON matching the seven application fields.
 - Returns field results, expected/found values, overall verdict, and `latency_ms`.
 
+Example:
+
+```bash
+curl -s https://ttb-label-verification-api-zgnb.onrender.com/verify \
+  -F 'image=@path/to/label.jpg;type=image/jpeg' \
+  -F 'application_data={
+    "brand_name":"Old Harbor",
+    "class_type":"Straight Bourbon Whiskey",
+    "abv":"45%",
+    "net_contents":"750 mL",
+    "producer":"Okorie Spirits Co.",
+    "country_of_origin":"United States",
+    "government_warning":"GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+  }'
+```
+
 `POST /verify/batch`
 
 - Multipart field `images`: repeated image files.
 - Multipart field `items`: JSON array matching image order. Each item has `id` and `application_data`.
 - Returns per-item result or error plus summary counts: `passed`, `needs_review`, and `total`.
+
+Example:
+
+```bash
+curl -s https://ttb-label-verification-api-zgnb.onrender.com/verify/batch \
+  -F 'images=@path/to/label-a.jpg;type=image/jpeg' \
+  -F 'images=@path/to/label-b.jpg;type=image/jpeg' \
+  -F 'items=[
+    {
+      "id":"Label A",
+      "application_data":{
+        "brand_name":"Old Harbor",
+        "class_type":"Straight Bourbon Whiskey",
+        "abv":"45%",
+        "net_contents":"750 mL",
+        "producer":"Okorie Spirits Co.",
+        "country_of_origin":"United States",
+        "government_warning":"GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+      }
+    },
+    {
+      "id":"Label B",
+      "application_data":{
+        "brand_name":"Old Harbor",
+        "class_type":"Straight Bourbon Whiskey",
+        "abv":"45%",
+        "net_contents":"750 mL",
+        "producer":"Okorie Spirits Co.",
+        "country_of_origin":"United States",
+        "government_warning":"GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems."
+      }
+    }
+  ]'
+```
+
+Successful single-label response shape:
+
+```json
+{
+  "results": [
+    {
+      "field": "brand_name",
+      "match_type": "fuzzy",
+      "expected": "Old Harbor",
+      "found": "Old Harbor",
+      "status": "PASS",
+      "detail": "normalized fuzzy ratio 1.00; threshold 0.90"
+    }
+  ],
+  "overall_verdict": "APPROVED",
+  "latency_ms": 2100
+}
+```
+
+Successful batch response shape:
+
+```json
+{
+  "items": [
+    {
+      "item_id": "Label A",
+      "result": {
+        "results": [],
+        "overall_verdict": "NEEDS_REVIEW",
+        "latency_ms": 2100
+      },
+      "error": null
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "needs_review": 1,
+    "total": 1
+  }
+}
+```
+
+Error response shape:
+
+```json
+{
+  "detail": "Use a JPG, PNG, or WebP image file."
+}
+```
+
+## Performance
+
+Single-label performance is measured with the live smoke script:
+
+```bash
+cd backend
+../.venv/bin/python scripts/measure_live_verify.py \
+  --url https://ttb-label-verification-api-zgnb.onrender.com \
+  --runs 5
+```
+
+The script posts to `POST /verify`, uses the seven-field application payload shown above, and generates `/tmp/ttb-live-smoke-label.jpg` when no image is supplied.
+
+Latest measurement attempt on July 13, 2026:
+
+| Metric | Result |
+| --- | --- |
+| Successful samples | `0 / 5` |
+| p50 single-label latency | Not available because all samples returned HTTP 422 |
+| p95 single-label latency | Not available because all samples returned HTTP 422 |
+| Observed failure | `Vision model timed out. Try a clearer or smaller image.` |
+
+Render cold starts can push the first request past 10 seconds. Steady-state single-label responses must remain under the 5-second target; the current deployed vision timeout must be resolved before this requirement can be marked satisfied with p50/p95 values.
 
 ## Deployment
 
@@ -152,6 +287,15 @@ Expected results:
 - Frontend URL returns a public page, not a Vercel SSO redirect.
 - Backend tests pass.
 - Backend health returns `{"status":"ok","service":"ttb-label-verification-api"}`.
+
+## Approach And Tools
+
+The project used Codex with the Plan / Review / Execute cadence described in `AGENTS.md`. Planning turns identified the smallest safe scope, review turns checked the plan against the hard requirements, and execute turns made code changes with tests.
+
+- AI-assisted implementation: FastAPI endpoints, comparison helpers, vision-service structure, frontend wiring, deployment documentation, and regression tests were drafted with Codex and then reviewed in context.
+- Human-directed requirements: exact case-sensitive government warning behavior, required batch upload, under-five-second target, no database, and environment-variable-only secrets came from the project brief and were treated as hard constraints.
+- Human overrides: comparison stayed conservative with Python `SequenceMatcher` instead of broader token-set matching; Vercel deployment protection was disabled only after the live URL was proven to redirect to SSO; malformed model output was made reviewable instead of hiding partial extraction behind a 422.
+- Hand-reviewed areas: secret handling, deployment URLs, README audit steps, and the issue documents were checked manually against reviewer-facing requirements.
 
 ## Assumptions And Limitations
 

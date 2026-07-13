@@ -12,6 +12,7 @@ from app.vision import (
     FakeVisionService,
     MALFORMED_OUTPUT_NOTE,
     VisionError,
+    VisionTimeoutError,
     parse_extracted_label,
 )
 
@@ -115,6 +116,20 @@ def test_verify_vision_error_returns_readable_422():
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Image is too blurry to read."
+
+
+def test_verify_vision_timeout_degrades_to_needs_review():
+    app.state.vision_service = FakeVisionService(error=VisionTimeoutError("Vision model timed out."))
+    client = TestClient(app)
+    response = client.post(
+        "/verify",
+        data={"application_data": json.dumps(application_data())},
+        files={"image": ("label.png", image_bytes(), "image/png")},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert all(item["status"] == "FAIL" for item in payload["results"])
 
 
 def test_verify_malformed_model_output_degrades_to_needs_review():

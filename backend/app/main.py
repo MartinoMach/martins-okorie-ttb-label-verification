@@ -12,9 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from .comparison import compare_label
-from .models import ApplicationData, BatchItemResult, BatchResult, VerificationResult
+from .models import ApplicationData, BatchItemResult, BatchResult, ExtractedLabel, VerificationResult
 from .settings import settings
-from .vision import OpenAIVisionService, VisionError
+from .vision import OpenAIVisionService, TIMEOUT_OUTPUT_NOTE, VisionError, VisionTimeoutError
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 logger = logging.getLogger("ttb_label_verification")
@@ -103,6 +103,12 @@ async def _verify_one(
         if getattr(request.app.state, "vision_service", None) is None:
             request.app.state.vision_service = OpenAIVisionService()
         extracted = await request.app.state.vision_service.extract_label(image_bytes, content_type)
+    except VisionTimeoutError:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        extracted = ExtractedLabel(raw_text=TIMEOUT_OUTPUT_NOTE, extraction_confidence=0.0)
+        result = compare_label(expected, extracted, latency_ms=latency_ms)
+        logger.info("verify timed out verdict=%s latency_ms=%s", result.overall_verdict, latency_ms)
+        return result
     except VisionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     latency_ms = int((time.perf_counter() - started) * 1000)

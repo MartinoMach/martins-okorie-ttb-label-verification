@@ -11,10 +11,15 @@ from .models import ExtractedLabel
 from .settings import Settings, settings
 
 MALFORMED_OUTPUT_NOTE = "The model output could not be parsed. Review the label photo manually."
+TIMEOUT_OUTPUT_NOTE = "The vision model timed out. Review the label photo manually."
 
 
 class VisionError(RuntimeError):
     """Raised when label extraction cannot produce usable structured data."""
+
+
+class VisionTimeoutError(VisionError):
+    """Raised when the vision model exceeds the configured request timeout."""
 
 
 class VisionService(Protocol):
@@ -66,7 +71,7 @@ class OpenAIVisionService:
                 response = await client.post("https://api.openai.com/v1/responses", json=payload, headers=headers)
                 response.raise_for_status()
         except httpx.TimeoutException as exc:
-            raise VisionError("Vision model timed out. Try a clearer or smaller image.") from exc
+            raise VisionTimeoutError("Vision model timed out. Try a clearer or smaller image.") from exc
         except httpx.HTTPStatusError as exc:
             body = exc.response.text[:240] if exc.response is not None else "unknown API error"
             raise VisionError(f"Vision model request failed: {body}") from exc
