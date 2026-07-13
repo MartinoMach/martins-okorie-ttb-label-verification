@@ -28,14 +28,15 @@ The README is missing reviewer-facing sections required by the demonstrable requ
 ## Current Verification Notes
 
 - Backend tests pass locally.
-- The live smoke script is repeatable, but the current deployed backend returns HTTP 422 with `Vision model timed out. Try a clearer or smaller image.` before successful p50/p95 samples can be collected.
-- README now documents the measurement command, current timeout blocker, and the requirement that steady-state successful calls must be measured under five seconds before closeout.
+- The live smoke script is repeatable and now returns HTTP 200 samples against the deployed backend.
+- Latest live smoke run used one warm-up request and five measured samples: p50 `4331 ms`, p95 `4358 ms`, all `NEEDS_REVIEW` for the generated smoke image.
+- README now documents the measurement command, p50/p95 values, and Render cold-start caveat.
 
 ## Verification Checklist
 
 - README lists all variables read by `backend/app/settings.py`.
 - README includes single and batch curl examples.
 - README includes success and error response shapes.
-- README includes measurement method and records the current p50/p95 blocker.
+- README includes measurement method and p50/p95 values.
 - README includes Approach / Tools.
 - Backend tests pass.

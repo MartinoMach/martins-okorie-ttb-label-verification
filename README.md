@@ -216,21 +216,23 @@ Single-label performance is measured with the live smoke script:
 cd backend
 ../.venv/bin/python scripts/measure_live_verify.py \
   --url https://ttb-label-verification-api-zgnb.onrender.com \
+  --warmup 1 \
   --runs 5
 ```
 
-The script posts to `POST /verify`, uses the seven-field application payload shown above, and generates `/tmp/ttb-live-smoke-label.jpg` when no image is supplied.
+The script posts to `POST /verify`, uses the seven-field application payload shown above, runs one warm-up request outside the p50/p95 sample, and generates `/tmp/ttb-live-smoke-label.jpg` when no image is supplied.
 
-Latest measurement attempt on July 13, 2026:
+Latest measurement on July 13, 2026:
 
 | Metric | Result |
 | --- | --- |
-| Successful samples | `0 / 5` |
-| p50 single-label latency | Not available because all samples returned HTTP 422 |
-| p95 single-label latency | Not available because all samples returned HTTP 422 |
-| Observed failure | `Vision model timed out. Try a clearer or smaller image.` |
+| Successful samples | `5 / 5` |
+| Warm-up request | `5741 ms` API latency |
+| p50 single-label latency | `4331 ms` API latency |
+| p95 single-label latency | `4358 ms` API latency |
+| Verdicts | All `NEEDS_REVIEW` for the generated smoke image |
 
-Render cold starts can push the first request past 10 seconds. Steady-state single-label responses must remain under the 5-second target; the current deployed vision timeout must be resolved before this requirement can be marked satisfied with p50/p95 values.
+Render cold starts can push the first request past 10 seconds. In this measured run, steady-state single-label responses stayed under the 5-second target.
 
 ## Deployment
 
