@@ -8,6 +8,7 @@ from PIL import Image
 from app.models import CANONICAL_GOVERNMENT_WARNING, ExtractedLabel
 from app.vision import (
     FakeVisionService,
+    MALFORMED_OUTPUT_NOTE,
     VisionError,
     parse_extracted_label,
     preprocess_image,
@@ -50,9 +51,17 @@ def test_parse_extracted_label_accepts_nested_text_shape():
     assert parse_extracted_label(payload) == expected
 
 
-def test_parse_extracted_label_rejects_malformed_json_readably():
-    with pytest.raises(VisionError, match="malformed structured data"):
-        parse_extracted_label({"output_text": "{not-json"})
+def test_parse_extracted_label_degrades_malformed_json_to_reviewable_blank_extraction():
+    result = parse_extracted_label({"output_text": "{not-json"})
+    assert result.brand_name is None
+    assert result.class_type is None
+    assert result.abv is None
+    assert result.net_contents is None
+    assert result.producer is None
+    assert result.country_of_origin is None
+    assert result.government_warning is None
+    assert result.raw_text == MALFORMED_OUTPUT_NOTE
+    assert result.extraction_confidence == 0.0
 
 
 def test_parse_extracted_label_rejects_missing_text_readably():
@@ -71,4 +80,3 @@ def test_preprocess_downscales_and_reencodes_image():
 def test_preprocess_rejects_non_image_readably():
     with pytest.raises(VisionError, match="could not be read as an image"):
         preprocess_image(b"not an image", "text/plain")
-

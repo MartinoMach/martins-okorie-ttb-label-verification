@@ -10,6 +10,8 @@ from PIL import Image, UnidentifiedImageError
 from .models import ExtractedLabel
 from .settings import Settings, settings
 
+MALFORMED_OUTPUT_NOTE = "The model output could not be parsed. Review the label photo manually."
+
 
 class VisionError(RuntimeError):
     """Raised when label extraction cannot produce usable structured data."""
@@ -40,7 +42,7 @@ class OpenAIVisionService:
                         {
                             "type": "input_image",
                             "image_url": f"data:{mime_type};base64,{encoded}",
-                            "detail": "low",
+                            "detail": "high",
                         },
                     ],
                 }
@@ -148,8 +150,8 @@ def parse_extracted_label(payload: dict[str, Any]) -> ExtractedLabel:
         raise VisionError("Vision model returned no structured output.")
     try:
         return ExtractedLabel.model_validate_json(text)
-    except Exception as exc:
-        raise VisionError("Vision model returned malformed structured data.") from exc
+    except Exception:
+        return ExtractedLabel(raw_text=MALFORMED_OUTPUT_NOTE, extraction_confidence=0.0)
 
 
 def _find_output_text(value: Any) -> str | None:
@@ -166,4 +168,3 @@ def _find_output_text(value: Any) -> str | None:
             if found:
                 return found
     return None
-

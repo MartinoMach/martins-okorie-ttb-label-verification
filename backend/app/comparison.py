@@ -12,11 +12,29 @@ ML_TOLERANCE = 1.0
 
 COUNTRY_ALIASES = {
     "america": "united states",
+    "australia": "australia",
+    "canada": "canada",
+    "france": "france",
+    "french republic": "france",
+    "germany": "germany",
+    "federal republic of germany": "germany",
     "u s": "united states",
     "u s a": "united states",
     "u.s.": "united states",
     "u.s.a": "united states",
     "u.s.a.": "united states",
+    "ireland": "ireland",
+    "italia": "italy",
+    "italy": "italy",
+    "japan": "japan",
+    "mexico": "mexico",
+    "republic of ireland": "ireland",
+    "republic of italy": "italy",
+    "scottish": "scotland",
+    "portugal": "portugal",
+    "scotland": "scotland",
+    "spain": "spain",
+    "united mexican states": "mexico",
     "united states": "united states",
     "united states of america": "united states",
     "us": "united states",
@@ -26,6 +44,11 @@ COUNTRY_ALIASES = {
     "uk": "united kingdom",
     "united kingdom": "united kingdom",
 }
+PRODUCER_ROLE_PREFIX = re.compile(
+    r"^(?:(?:produced|bottled|distilled|imported|vinted)"
+    r"(?:\s+and\s+(?:produced|bottled|distilled|imported|vinted))*\s+by)\b[\s:,-]+",
+    re.IGNORECASE,
+)
 
 
 def compare_label(
@@ -38,7 +61,7 @@ def compare_label(
         _compare_fuzzy("class_type", expected.class_type, found.class_type),
         _compare_abv(expected.abv, found.abv),
         _compare_net_contents(expected.net_contents, found.net_contents),
-        _compare_fuzzy("producer", expected.producer, found.producer),
+        _compare_producer(expected.producer, found.producer),
         _compare_country(expected.country_of_origin, found.country_of_origin),
         _compare_government_warning(expected.government_warning, found.government_warning),
     ]
@@ -84,6 +107,26 @@ def _compare_fuzzy(field: str, expected: str, found: str | None) -> FieldResult:
     ratio = SequenceMatcher(None, expected_norm, found_norm).ratio() if found_norm else 0.0
     return _result(
         field,
+        "fuzzy",
+        expected,
+        found,
+        ratio >= FUZZY_THRESHOLD,
+        f"normalized fuzzy ratio {ratio:.2f}; threshold {FUZZY_THRESHOLD:.2f}",
+    )
+
+
+def _strip_producer_role(value: str | None) -> str:
+    if not value:
+        return ""
+    return PRODUCER_ROLE_PREFIX.sub("", value.strip()).strip()
+
+
+def _compare_producer(expected: str, found: str | None) -> FieldResult:
+    expected_norm = _normalize_text(_strip_producer_role(expected))
+    found_norm = _normalize_text(_strip_producer_role(found))
+    ratio = SequenceMatcher(None, expected_norm, found_norm).ratio() if found_norm else 0.0
+    return _result(
+        "producer",
         "fuzzy",
         expected,
         found,
@@ -198,4 +241,3 @@ def _compare_government_warning(expected: str, found: str | None) -> FieldResult
         passed,
         detail,
     )
-

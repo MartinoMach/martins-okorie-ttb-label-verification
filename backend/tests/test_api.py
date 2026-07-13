@@ -8,7 +8,12 @@ from PIL import Image
 
 from app.main import app
 from app.models import CANONICAL_GOVERNMENT_WARNING, ExtractedLabel
-from app.vision import FakeVisionService, VisionError
+from app.vision import (
+    FakeVisionService,
+    MALFORMED_OUTPUT_NOTE,
+    VisionError,
+    parse_extracted_label,
+)
 
 
 def image_bytes() -> bytes:
@@ -110,6 +115,28 @@ def test_verify_vision_error_returns_readable_422():
     )
     assert response.status_code == 422
     assert response.json()["detail"] == "Image is too blurry to read."
+
+
+def test_verify_malformed_model_output_degrades_to_needs_review():
+    client = client_with_fake(parse_extracted_label({"output_text": "{not-json"}))
+    response = client.post(
+        "/verify",
+        data={"application_data": json.dumps(application_data())},
+        files={"image": ("label.png", image_bytes(), "image/png")},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert all(item["status"] == "FAIL" for item in payload["results"])
+
+
+def test_startup_preserves_preconfigured_fake_vision_service():
+    fake_service = FakeVisionService(extracted(raw_text=MALFORMED_OUTPUT_NOTE))
+    app.state.vision_service = fake_service
+    with TestClient(app) as client:
+        response = client.get("/health")
+    assert response.status_code == 200
+    assert app.state.vision_service is fake_service
 
 
 def test_partial_extraction_degrades_to_needs_review_without_crashing():

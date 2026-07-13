@@ -42,6 +42,8 @@ The application checks seven fields: `brand_name`, `class_type`, `abv`, `net_con
 - Government warning: exact case-sensitive match after whitespace collapse only.
 - Verdict: any failed field returns `NEEDS_REVIEW`; all fields passing returns `APPROVED`.
 
+Fuzzy text comparison uses Python `SequenceMatcher`, which avoids broad token-set false positives such as `ACME` passing against `ACME RESERVE`. The tradeoff is that reordered words like `ACME Reserve` vs `Reserve ACME` may still need reviewer attention.
+
 ## Local Setup
 
 ```bash

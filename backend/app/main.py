@@ -4,6 +4,7 @@ import logging
 import asyncio
 import json
 import time
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -18,7 +19,15 @@ from .vision import OpenAIVisionService, VisionError
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 logger = logging.getLogger("ttb_label_verification")
 
-app = FastAPI(title="TTB Label Verification API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if getattr(app.state, "vision_service", None) is None:
+        app.state.vision_service = OpenAIVisionService()
+    yield
+
+
+app = FastAPI(title="TTB Label Verification API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,7 +37,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-app.state.vision_service = OpenAIVisionService()
 
 
 @app.get("/health")
@@ -92,6 +100,8 @@ async def _verify_one(
 ) -> VerificationResult:
     started = time.perf_counter()
     try:
+        if getattr(request.app.state, "vision_service", None) is None:
+            request.app.state.vision_service = OpenAIVisionService()
         extracted = await request.app.state.vision_service.extract_label(image_bytes, content_type)
     except VisionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

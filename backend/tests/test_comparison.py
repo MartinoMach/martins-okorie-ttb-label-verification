@@ -58,6 +58,37 @@ def test_country_alias_passes():
     assert field(result, "country_of_origin").status == "PASS"
 
 
+def test_common_country_synonyms_pass():
+    cases = [
+        ("France", "French Republic"),
+        ("Italy", "Italia"),
+        ("Mexico", "United Mexican States"),
+        ("Scotland", "Scottish"),
+    ]
+    for expected_country, found_country in cases:
+        result = compare_label(
+            expected(country_of_origin=expected_country),
+            found(country_of_origin=found_country),
+        )
+        assert field(result, "country_of_origin").status == "PASS"
+
+
+def test_producer_compound_role_prefix_passes():
+    result = compare_label(
+        expected(producer="Acme Spirits"),
+        found(producer="Produced and bottled by Acme Spirits"),
+    )
+    assert field(result, "producer").status == "PASS"
+
+
+def test_producer_imported_by_prefix_passes():
+    result = compare_label(
+        expected(producer="Acme Spirits"),
+        found(producer="Imported by Acme Spirits"),
+    )
+    assert field(result, "producer").status == "PASS"
+
+
 def test_government_warning_title_case_fails():
     title_case_warning = CANONICAL_GOVERNMENT_WARNING.title()
     result = compare_label(expected(), found(government_warning=title_case_warning))
@@ -88,4 +119,3 @@ def test_any_failed_field_sets_needs_review():
     result = compare_label(expected(), found(producer="Another Producer"))
     assert field(result, "producer").status == "FAIL"
     assert result.overall_verdict == "NEEDS_REVIEW"
-
