@@ -37,7 +37,7 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | Yes for real extraction | None | OpenAI API key for the Responses endpoint. |
 | `VISION_MODEL` | No | `gpt-4o-mini` | OpenAI model used for label extraction. |
-| `FRONTEND_ORIGINS` | No | `http://localhost:5173,http://localhost:8000` | CORS allow-list for browser origins. |
+| `FRONTEND_ORIGINS` | No | `http://localhost:5173` | CORS allow-list for browser origins. |
 | `MAX_IMAGE_BYTES` | No | `8388608` | Per-image upload size cap in bytes. |
 | `VISION_TIMEOUT_SECONDS` | No | `4.2` | `httpx` timeout for the OpenAI request. |
 | `BATCH_CONCURRENCY` | No | `3` | Semaphore limit for concurrent batch items. |

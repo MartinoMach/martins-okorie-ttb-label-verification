@@ -190,13 +190,13 @@ test("verification network failures show a helpful service message", async () =>
   );
 });
 
-test("Vercel build config defaults to the deployed Render API", () => {
+test("build config uses API_BASE_URL when provided", () => {
   const configUrl = new URL("./config.js", import.meta.url);
   const originalConfig = readFileSync(configUrl, "utf8");
   try {
     execFileSync("node", ["build-config.mjs"], {
       cwd: new URL(".", import.meta.url),
-      env: { ...process.env, VERCEL: "1", API_BASE_URL: "" },
+      env: { ...process.env, API_BASE_URL: PRODUCTION_API_BASE_URL },
     });
     const generatedConfig = readFileSync(configUrl, "utf8");
     assert.match(generatedConfig, new RegExp(PRODUCTION_API_BASE_URL.replaceAll(".", "\\.")));

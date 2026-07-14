@@ -11,7 +11,7 @@ class Settings:
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY") or None
     vision_model: str = os.getenv("VISION_MODEL", "gpt-4o-mini")
     frontend_origins: list[str] = _csv(
-        os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://localhost:8000")
+        os.getenv("FRONTEND_ORIGINS", "http://localhost:5173")
     )
     max_image_bytes: int = int(os.getenv("MAX_IMAGE_BYTES", str(8 * 1024 * 1024)))
     vision_timeout_seconds: float = float(os.getenv("VISION_TIMEOUT_SECONDS", "4.2"))
