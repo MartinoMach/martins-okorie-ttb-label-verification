@@ -398,6 +398,26 @@ test("batch card exterior uses blue while nested failures stay orange", () => {
   );
 });
 
+test("batch summary metrics use themed state accents", () => {
+  const styles = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+  assert.match(
+    styles,
+    /\.verdict-banner\.batch-summary \.summary div\s*\{[^}]*background:\s*#ffffff;[^}]*border-left:\s*6px solid var\(--color-navy-dark\);[^}]*\}/s
+  );
+  assert.match(
+    styles,
+    /\.verdict-banner\.batch-summary \.summary div:nth-child\(1\)\s*\{[^}]*border-left-color:\s*var\(--color-green\);[^}]*\}/s
+  );
+  assert.match(
+    styles,
+    /\.verdict-banner\.batch-summary \.summary div:nth-child\(2\)\s*\{[^}]*border-left-color:\s*var\(--color-orange\);[^}]*\}/s
+  );
+  assert.match(
+    styles,
+    /\.verdict-banner\.batch-summary \.summary div:nth-child\(3\)\s*\{[^}]*border-left-color:\s*var\(--color-navy-dark\);[^}]*\}/s
+  );
+});
+
 test("cold-start loading copy appears after three seconds", async () => {
   const { window } = setupApp(async (url) => {
     if (String(url).endsWith("/health")) {
