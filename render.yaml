@@ -13,13 +13,13 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: VISION_MODEL
-        value: gpt-4o-mini
+        value: gpt-4.1-mini
       - key: FRONTEND_ORIGINS
         value: https://ttb-label-verification-frontend-mach-tino.vercel.app
       - key: MAX_IMAGE_BYTES
         value: "8388608"
       - key: VISION_TIMEOUT_SECONDS
-        value: "4.2"
+        value: "4.5"
       - key: BATCH_CONCURRENCY
         value: "3"
       - key: BATCH_MAX_ITEMS

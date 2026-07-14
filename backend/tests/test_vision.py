@@ -82,7 +82,8 @@ def test_preprocess_downscales_and_reencodes_image():
 
 
 def test_openai_payload_uses_high_detail_and_bounded_output_for_warning_fidelity():
-    payload = build_responses_payload(b"fake-jpeg", "image/jpeg", "gpt-4o-mini")
+    payload = build_responses_payload(b"fake-jpeg", "image/jpeg", "gpt-4.1-mini")
+    assert payload["model"] == "gpt-4.1-mini"
     image_part = payload["input"][0]["content"][1]
     assert image_part["type"] == "input_image"
     assert image_part["detail"] == "high"

@@ -75,7 +75,7 @@ def preprocess_image(image_bytes: bytes, content_type: str) -> tuple[bytes, str]
             image = image.convert("RGB")
             image.thumbnail((1280, 1280))
             output = io.BytesIO()
-            image.save(output, format="JPEG", quality=72, optimize=True)
+            image.save(output, format="JPEG", quality=80, optimize=True)
             return output.getvalue(), "image/jpeg"
     except UnidentifiedImageError as exc:
         raise VisionError("The uploaded file could not be read as an image.") from exc
