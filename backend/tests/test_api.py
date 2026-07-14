@@ -160,6 +160,7 @@ def test_verify_vision_timeout_degrades_to_needs_review():
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
     assert payload["extraction_note"] == "The label could not be read before the time limit. Try a clearer, closer photo."
+    assert payload["raw_text"] is None
     assert all(item["status"] == "FAIL" for item in payload["results"])
 
 
@@ -174,6 +175,7 @@ def test_verify_malformed_model_output_degrades_to_needs_review():
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
     assert payload["extraction_note"] == "The label response could not be read reliably. Review the label photo manually."
+    assert payload["raw_text"] is None
     assert all(item["status"] == "FAIL" for item in payload["results"])
 
 

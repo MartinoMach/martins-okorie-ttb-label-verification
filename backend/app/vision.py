@@ -73,9 +73,9 @@ def preprocess_image(image_bytes: bytes, content_type: str) -> tuple[bytes, str]
     try:
         with Image.open(io.BytesIO(image_bytes)) as image:
             image = image.convert("RGB")
-            image.thumbnail((1400, 1400))
+            image.thumbnail((1280, 1280))
             output = io.BytesIO()
-            image.save(output, format="JPEG", quality=78, optimize=True)
+            image.save(output, format="JPEG", quality=72, optimize=True)
             return output.getvalue(), "image/jpeg"
     except UnidentifiedImageError as exc:
         raise VisionError("The uploaded file could not be read as an image.") from exc
@@ -106,19 +106,19 @@ def build_responses_payload(processed_image: bytes, mime_type: str, model: str) 
                 "schema": extracted_label_schema(),
             }
         },
+        "max_output_tokens": 650,
     }
 
 
 def extraction_prompt() -> str:
     return (
-        "Extract structured data from this alcohol beverage label for TTB compliance review. "
-        "Return only JSON matching the supplied schema. Extract brand_name, class_type, abv, "
-        "net_contents, producer, country_of_origin, and government_warning. Use null for any "
-        "field that is missing, obscured, blurry, angled, glared, or uncertain. Copy the "
-        "government warning verbatim exactly as printed, preserving capitalization, punctuation, "
-        "parentheses, colon, and wording. Include raw_text with visible label text and "
-        "extraction_confidence from 0 to 1. If the image is not a label, return null fields, "
-        "a short raw_text description, and low extraction_confidence."
+        "Extract TTB alcohol-label data. Return only JSON matching the schema. "
+        "Fields: brand_name, class_type, abv, net_contents, producer, country_of_origin, "
+        "government_warning, raw_text, extraction_confidence. Use null for unknown, missing, "
+        "blurry, angled, glared, or uncertain fields; return partial data when possible. "
+        "Copy government_warning verbatim exactly as printed, preserving case, punctuation, "
+        "colon, parentheses, and wording. raw_text should be concise visible label text only. "
+        "If the image is not a label, return null fields, concise raw_text, and low confidence."
     )
 
 

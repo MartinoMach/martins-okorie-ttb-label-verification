@@ -24,6 +24,7 @@ from .vision import (
 )
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+INTERNAL_EXTRACTION_NOTES = {MALFORMED_OUTPUT_NOTE, NO_OUTPUT_NOTE, TIMEOUT_OUTPUT_NOTE}
 APPLICATION_FIELD_LABELS = {
     "brand_name": "Brand name",
     "class_type": "Class / type",
@@ -141,7 +142,7 @@ def _attach_extraction_metadata(
     extraction_note: str | None,
 ) -> None:
     result.extraction_note = extraction_note
-    result.raw_text = extracted.raw_text
+    result.raw_text = None if extracted.raw_text in INTERNAL_EXTRACTION_NOTES else extracted.raw_text
     result.extraction_confidence = extracted.extraction_confidence
 
 
