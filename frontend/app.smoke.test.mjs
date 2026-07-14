@@ -111,6 +111,56 @@ test("one label card posts image and seven application fields to /verify", async
   assert.equal(applicationData.net_contents, "750 mL");
 });
 
+test("empty required single-label field blocks submit with a clear message", async () => {
+  const fetchCalls = [];
+  const { window } = setupApp(async (url, options = {}) => {
+    fetchCalls.push({ url, options });
+    if (String(url).endsWith("/health")) {
+      return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new window.Response(JSON.stringify(verificationResult()), { status: 200 });
+  });
+  await Promise.resolve();
+
+  const row = window.document.querySelector(".batch-row");
+  fillRow(window, row);
+  row.querySelector('[name="brand_name"]').value = "";
+
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(window.document.getElementById("formError").textContent, "Enter Brand name for Label 1.");
+  assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify")), false);
+});
+
+test("empty numeric fields do not submit placeholder units", async () => {
+  const fetchCalls = [];
+  const { window } = setupApp(async (url, options = {}) => {
+    fetchCalls.push({ url, options });
+    if (String(url).endsWith("/health")) {
+      return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new window.Response(JSON.stringify(verificationResult()), { status: 200 });
+  });
+  await Promise.resolve();
+
+  const row = window.document.querySelector(".batch-row");
+  fillRow(window, row);
+  row.querySelector('[name="abv"]').value = "";
+
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(window.document.getElementById("formError").textContent, "Enter Alcohol by volume for Label 1.");
+  assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify")), false);
+});
+
 test("two label cards post images and items to /verify/batch", async () => {
   const fetchCalls = [];
   const { window } = setupApp(async (url, options = {}) => {
@@ -144,6 +194,36 @@ test("two label cards post images and items to /verify/batch", async () => {
   assert.equal(items.length, 2);
   assert.equal(items[0].application_data.abv, "45%");
   assert.equal(items[0].application_data.net_contents, "750 mL");
+});
+
+test("batch validation identifies the incomplete row and field", async () => {
+  const fetchCalls = [];
+  const { window } = setupApp(async (url, options = {}) => {
+    fetchCalls.push({ url, options });
+    if (String(url).endsWith("/health")) {
+      return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new window.Response(JSON.stringify(batchResult()), { status: 200 });
+  });
+  await Promise.resolve();
+
+  window.document.getElementById("addBatchRow").click();
+  const rows = [...window.document.querySelectorAll(".batch-row")];
+  fillRow(window, rows[0], 1);
+  fillRow(window, rows[1], 2);
+  rows[1].querySelector('[name="country_of_origin"]').value = "";
+
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(
+    window.document.getElementById("formError").textContent,
+    "Enter Country of origin for Label 2."
+  );
+  assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify/batch")), false);
 });
 
 test("cold-start loading copy appears after three seconds", async () => {

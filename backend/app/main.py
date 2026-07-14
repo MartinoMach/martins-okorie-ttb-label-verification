@@ -17,6 +17,15 @@ from .settings import settings
 from .vision import OpenAIVisionService, TIMEOUT_OUTPUT_NOTE, VisionError, VisionTimeoutError
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+APPLICATION_FIELD_LABELS = {
+    "brand_name": "Brand name",
+    "class_type": "Class / type",
+    "abv": "Alcohol by volume",
+    "net_contents": "Net contents",
+    "producer": "Producer",
+    "country_of_origin": "Country of origin",
+    "government_warning": "Government warning",
+}
 logger = logging.getLogger("ttb_label_verification")
 
 
@@ -81,7 +90,7 @@ async def verify_batch(
         except HTTPException as exc:
             return BatchItemResult(item_id=item_id, error=str(exc.detail))
         except (KeyError, ValidationError) as exc:
-            return BatchItemResult(item_id=item_id, error=f"Invalid application data: {exc}")
+            return BatchItemResult(item_id=item_id, error=_application_data_error(exc, item_id))
 
     batch_items = await asyncio.gather(*(run_one(index) for index in range(len(images))))
     passed = sum(1 for item in batch_items if item.result and item.result.overall_verdict == "APPROVED")
@@ -121,7 +130,39 @@ def _parse_application_data(value: str) -> ApplicationData:
     try:
         return ApplicationData.model_validate_json(value)
     except ValidationError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid application data: {exc}") from exc
+        raise HTTPException(status_code=400, detail=_application_data_error(exc)) from exc
+
+
+def _application_data_error(exc: ValidationError | KeyError, item_id: str | None = None) -> str:
+    prefix = "Invalid application data"
+    if item_id:
+        prefix = f"{prefix} for {item_id}"
+    if isinstance(exc, KeyError):
+        return f"{prefix}: Enter the application details for this label."
+
+    missing_fields = []
+    for error in exc.errors():
+        error_type = error.get("type")
+        if error_type == "json_invalid":
+            return f"{prefix}: Application data must be valid JSON."
+        loc = error.get("loc") or ["application details"]
+        field = str(loc[0])
+        if error_type in {"missing", "string_too_short"}:
+            missing_fields.append(APPLICATION_FIELD_LABELS.get(field, field.replace("_", " ").title()))
+
+    if missing_fields:
+        fields = _join_human_list(missing_fields)
+        return f"{prefix}: Enter {fields}."
+    return f"{prefix}: Check the application details and try again."
+
+
+def _join_human_list(values: list[str]) -> str:
+    unique_values = list(dict.fromkeys(values))
+    if len(unique_values) == 1:
+        return unique_values[0]
+    if len(unique_values) == 2:
+        return f"{unique_values[0]} and {unique_values[1]}"
+    return f"{', '.join(unique_values[:-1])}, and {unique_values[-1]}"
 
 
 def _parse_batch_items(value: str) -> list[dict]:

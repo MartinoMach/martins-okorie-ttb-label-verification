@@ -1,6 +1,6 @@
 # TTB Label Verification
 
-Proof-of-concept web app for checking alcohol label images against structured TTB application data. A plain JavaScript frontend sends an image plus application values to a FastAPI backend, the backend extracts label fields with an OpenAI vision model, compares each field, and returns per-field `PASS` / `FAIL` plus an overall verdict.
+Proof-of-concept web app for checking alcohol label images against structured TTB application data. A plain JavaScript frontend sends an image plus user-entered application values to a FastAPI backend, the backend extracts label fields with an OpenAI vision model, compares each expected application value against what was found on the label, and returns per-field `PASS` / `FAIL` plus an overall verdict.
 
 ## Final Submission Links
 
@@ -15,6 +15,7 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 ## What Is Implemented
 
 - Unified upload flow with one label card by default; one card submits to `/verify`, and adding more cards submits to `/verify/batch`.
+- Plain-English validation catches missing application fields before submission; the label image is not used as a substitute for the expected application record.
 - Batch verification has bounded backend concurrency, an env-configurable item cap, per-item error isolation, summary counts, and drill-down field details.
 - FastAPI backend with `GET /health`, `POST /verify`, and `POST /verify/batch`.
 - OpenAI Responses API vision extraction with strict structured JSON output.

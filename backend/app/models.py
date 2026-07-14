@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 CANONICAL_GOVERNMENT_WARNING = (
@@ -21,6 +21,13 @@ class ApplicationData(BaseModel):
     producer: str = Field(..., min_length=1)
     country_of_origin: str = Field(..., min_length=1)
     government_warning: str = Field(default=CANONICAL_GOVERNMENT_WARNING, min_length=1)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def strip_text_fields(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class ExtractedLabel(BaseModel):
@@ -59,4 +66,3 @@ class BatchItemResult(BaseModel):
 class BatchResult(BaseModel):
     items: list[BatchItemResult]
     summary: dict[str, int]
-

@@ -104,7 +104,33 @@ def test_verify_rejects_malformed_application_json_readably():
         files={"image": ("label.png", image_bytes(), "image/png")},
     )
     assert response.status_code == 400
-    assert "Invalid application data" in response.json()["detail"]
+    assert response.json()["detail"] == "Invalid application data: Application data must be valid JSON."
+
+
+def test_verify_rejects_empty_application_fields_readably():
+    client = client_with_fake(extracted())
+    bad_data = application_data()
+    bad_data["brand_name"] = ""
+    bad_data["producer"] = "   "
+    response = client.post(
+        "/verify",
+        data={"application_data": json.dumps(bad_data)},
+        files={"image": ("label.png", image_bytes(), "image/png")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid application data: Enter Brand name and Producer."
+
+
+def test_verify_strips_application_fields_before_comparison():
+    client = client_with_fake(extracted())
+    padded_data = {key: f"  {value}  " for key, value in application_data().items()}
+    response = client.post(
+        "/verify",
+        data={"application_data": json.dumps(padded_data)},
+        files={"image": ("label.png", image_bytes(), "image/png")},
+    )
+    assert response.status_code == 200
+    assert response.json()["overall_verdict"] == "APPROVED"
 
 
 def test_verify_vision_error_returns_readable_422():
@@ -222,7 +248,7 @@ def test_batch_isolates_one_bad_item():
     assert response.status_code == 200
     payload = response.json()
     assert payload["summary"] == {"passed": 2, "needs_review": 1, "total": 3}
-    assert payload["items"][1]["error"]
+    assert payload["items"][1]["error"] == "Invalid application data for B: Enter Brand name."
 
 
 def test_batch_mismatched_counts_returns_readable_error():

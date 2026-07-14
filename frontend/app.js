@@ -95,6 +95,23 @@ function collectApplicationData(scope) {
   return data;
 }
 
+function rowLabel(row, index) {
+  return row.querySelector('[name="item_id"]').value.trim() || row.querySelector("legend").textContent || `Label ${index + 1}`;
+}
+
+function validateRow(row, index) {
+  const label = rowLabel(row, index);
+  const image = row.querySelector('[name="batch_image"]').files[0];
+  if (!image) throw new Error(`Choose an image for ${label}.`);
+
+  for (const [name, fieldLabel] of Object.entries(FIELD_LABELS)) {
+    const input = row.querySelector(`[name="${name}"]`);
+    if (!input.value.trim()) {
+      throw new Error(`Enter ${fieldLabel} for ${label}.`);
+    }
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -201,9 +218,8 @@ document.getElementById("addBatchRow").addEventListener("click", addBatchRow);
 addBatchRow();
 
 async function submitSingle(row) {
-  const image = row.querySelector('[name="batch_image"]').files[0];
-  if (!image) throw new Error("Choose a label image before submitting.");
   const data = new FormData();
+  const image = row.querySelector('[name="batch_image"]').files[0];
   data.append("image", image);
   data.append("application_data", JSON.stringify(collectApplicationData(row)));
   let response;
@@ -227,10 +243,9 @@ async function submitBatch(rows) {
   const data = new FormData();
   const items = rows.map((row, index) => {
     const file = row.querySelector('[name="batch_image"]').files[0];
-    if (!file) throw new Error(`Choose an image for Label ${index + 1}.`);
     data.append("images", file);
     return {
-      id: row.querySelector('[name="item_id"]').value.trim() || `Label ${index + 1}`,
+      id: rowLabel(row, index),
       application_data: collectApplicationData(row)
     };
   });
@@ -253,14 +268,22 @@ verifyForm.addEventListener("submit", async (event) => {
   const progress = document.getElementById("verifyProgress");
   const rows = [...batchRows.children];
   hideMessage(error);
-  const loadingTimer = startLoading(progress, "Reading the label and comparing the application record.");
   resultsView.hidden = true;
   batchResultsView.hidden = true;
+
+  try {
+    if (!rows.length) throw new Error("Add at least one batch row.");
+    rows.forEach(validateRow);
+  } catch (err) {
+    showMessage(error, err.message);
+    return;
+  }
+
+  const loadingTimer = startLoading(progress, "Reading the label and comparing the application record.");
   submitButton.disabled = true;
   submitButton.textContent = rows.length > 1 ? "Verifying batch..." : "Verifying...";
 
   try {
-    if (!rows.length) throw new Error("Add at least one batch row.");
     if (rows.length === 1) {
       await submitSingle(rows[0]);
     } else {
