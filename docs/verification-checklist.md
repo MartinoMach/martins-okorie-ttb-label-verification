@@ -11,9 +11,9 @@ Use this checklist before the final submission.
 - Missing, wrong-caps, and punctuation-changed government warnings fail.
 - Correct government warning passes.
 - Misread warning returns the extracted text for manual review.
+- All-missing extraction results show a plain-English extraction note, raw text when available, and remain `NEEDS_REVIEW`.
 - Imperfect image returns partial data or a readable error, not a crash.
 - Wrong file type returns a readable 4xx error.
 - Empty image returns a readable 4xx error.
 - Batch summary counts approved, needs-review, and total correctly.
 - Single-label deployed latency is under 5 seconds, or the measured bottleneck is documented.
-

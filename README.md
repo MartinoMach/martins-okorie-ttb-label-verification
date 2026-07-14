@@ -19,6 +19,8 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 - Batch verification has bounded backend concurrency, an env-configurable item cap, per-item error isolation, summary counts, and drill-down field details.
 - FastAPI backend with `GET /health`, `POST /verify`, and `POST /verify/batch`.
 - OpenAI Responses API vision extraction with strict structured JSON output.
+- High-detail image input is used for OCR fidelity on the exact-match government warning.
+- Extraction failures and unreadable labels return `NEEDS_REVIEW` with a plain-English extraction note.
 - Image preprocessing that downscales and re-encodes uploads before model calls.
 - Stateless request handling with no database.
 - Tests that use a fake vision service so automated checks do not call the OpenAI API.
@@ -56,6 +58,8 @@ The application checks seven fields: `brand_name`, `class_type`, `abv`, `net_con
 - Verdict: any failed field returns `NEEDS_REVIEW`; all fields passing returns `APPROVED`.
 
 Fuzzy text comparison uses Python `SequenceMatcher`, which avoids broad token-set false positives such as `ACME` passing against `ACME RESERVE`. The tradeoff is that reordered words like `ACME Reserve` vs `Reserve ACME` may still need reviewer attention.
+
+If every field shows `Found: Missing`, the label extraction likely timed out, returned malformed structured output, or could not read the image clearly. In those cases the response includes `extraction_note`, `raw_text`, and `extraction_confidence` so reviewers can distinguish an unreadable label from seven independent field mismatches.
 
 ## Local Setup
 
@@ -175,7 +179,32 @@ Successful single-label response shape:
     }
   ],
   "overall_verdict": "APPROVED",
-  "latency_ms": 2100
+  "latency_ms": 2100,
+  "extraction_note": null,
+  "raw_text": "Old Harbor Straight Bourbon Whiskey 45% Alc./Vol. 750ml",
+  "extraction_confidence": 0.96
+}
+```
+
+Extraction-failure response shape:
+
+```json
+{
+  "results": [
+    {
+      "field": "brand_name",
+      "match_type": "fuzzy",
+      "expected": "Old Harbor",
+      "found": null,
+      "status": "FAIL",
+      "detail": "normalized fuzzy ratio 0.00; threshold 0.90"
+    }
+  ],
+  "overall_verdict": "NEEDS_REVIEW",
+  "latency_ms": 4200,
+  "extraction_note": "The label could not be read clearly. Try a closer, sharper photo.",
+  "raw_text": "glared bottle",
+  "extraction_confidence": 0.2
 }
 ```
 
@@ -189,7 +218,10 @@ Successful batch response shape:
       "result": {
         "results": [],
         "overall_verdict": "NEEDS_REVIEW",
-        "latency_ms": 2100
+        "latency_ms": 2100,
+        "extraction_note": null,
+        "raw_text": null,
+        "extraction_confidence": null
       },
       "error": null
     }
@@ -341,4 +373,5 @@ The project used Codex with the Plan / Review / Execute cadence described in `AG
 - Real extraction requires a valid `OPENAI_API_KEY` on the backend host.
 - `VISION_MODEL` defaults to `gpt-4o-mini` and can be changed with an environment variable.
 - Government-warning OCR/model mistakes intentionally return `NEEDS_REVIEW` and surface extracted text for manual inspection.
+- Unreadable, timed-out, or malformed extractions intentionally return `NEEDS_REVIEW` with an extraction note instead of hiding the cause behind only `Missing` field values.
 - Batch concurrency is bounded with `BATCH_CONCURRENCY` to reduce rate and cost pressure.

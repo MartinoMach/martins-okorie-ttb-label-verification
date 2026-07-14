@@ -14,7 +14,14 @@ from pydantic import ValidationError
 from .comparison import compare_label
 from .models import ApplicationData, BatchItemResult, BatchResult, ExtractedLabel, VerificationResult
 from .settings import settings
-from .vision import OpenAIVisionService, TIMEOUT_OUTPUT_NOTE, VisionError, VisionTimeoutError
+from .vision import (
+    MALFORMED_OUTPUT_NOTE,
+    NO_OUTPUT_NOTE,
+    OpenAIVisionService,
+    TIMEOUT_OUTPUT_NOTE,
+    VisionError,
+    VisionTimeoutError,
+)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 APPLICATION_FIELD_LABELS = {
@@ -116,14 +123,57 @@ async def _verify_one(
         latency_ms = int((time.perf_counter() - started) * 1000)
         extracted = ExtractedLabel(raw_text=TIMEOUT_OUTPUT_NOTE, extraction_confidence=0.0)
         result = compare_label(expected, extracted, latency_ms=latency_ms)
+        _attach_extraction_metadata(result, extracted, _extraction_note(extracted))
         logger.info("verify timed out verdict=%s latency_ms=%s", result.overall_verdict, latency_ms)
         return result
     except VisionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     latency_ms = int((time.perf_counter() - started) * 1000)
     result = compare_label(expected, extracted, latency_ms=latency_ms)
+    _attach_extraction_metadata(result, extracted, _extraction_note(extracted))
     logger.info("verify completed verdict=%s latency_ms=%s", result.overall_verdict, latency_ms)
     return result
+
+
+def _attach_extraction_metadata(
+    result: VerificationResult,
+    extracted: ExtractedLabel,
+    extraction_note: str | None,
+) -> None:
+    result.extraction_note = extraction_note
+    result.raw_text = extracted.raw_text
+    result.extraction_confidence = extracted.extraction_confidence
+
+
+def _extraction_note(extracted: ExtractedLabel) -> str | None:
+    if extracted.raw_text == TIMEOUT_OUTPUT_NOTE:
+        return "The label could not be read before the time limit. Try a clearer, closer photo."
+    if extracted.raw_text == MALFORMED_OUTPUT_NOTE:
+        return "The label response could not be read reliably. Review the label photo manually."
+    if extracted.raw_text == NO_OUTPUT_NOTE:
+        return "The label text could not be read. Try a closer, sharper photo."
+    if not _has_extracted_fields(extracted):
+        if extracted.extraction_confidence is not None and extracted.extraction_confidence <= 0.2:
+            return "The label could not be read clearly. Try a closer, sharper photo."
+        if extracted.raw_text:
+            return "No required label fields were found. Review the image and application details."
+        return "The label text could not be read. Try a closer, sharper photo."
+    return None
+
+
+def _has_extracted_fields(extracted: ExtractedLabel) -> bool:
+    return any(
+        getattr(extracted, field)
+        for field in (
+            "brand_name",
+            "class_type",
+            "abv",
+            "net_contents",
+            "producer",
+            "country_of_origin",
+            "government_warning",
+        )
+    )
 
 
 def _parse_application_data(value: str) -> ApplicationData:

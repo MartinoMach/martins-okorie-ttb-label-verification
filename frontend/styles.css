@@ -453,7 +453,8 @@ button:disabled {
 }
 
 .result-row,
-.batch-result-card {
+.batch-result-card,
+.extraction-note {
   border: 1px solid var(--color-border);
   border-left-width: 8px;
   border-radius: var(--radius);
@@ -470,6 +471,29 @@ button:disabled {
   background: #fff8f0;
   border-color: #f7b267;
   border-left-color: var(--color-orange);
+}
+
+.extraction-note {
+  background: var(--color-orange-light);
+  border-color: #f7b267;
+  border-left-color: var(--color-orange);
+}
+
+.extraction-note h3 {
+  color: #4d2d00;
+  margin-bottom: var(--space-2);
+}
+
+.extraction-note p {
+  color: var(--color-ink);
+  font-size: 1rem;
+  line-height: 1.45;
+  margin-bottom: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.extraction-note p:last-child {
+  margin-bottom: 0;
 }
 
 .detail,

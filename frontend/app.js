@@ -153,6 +153,25 @@ async function readError(response) {
   }
 }
 
+function renderExtractionNote(result, target) {
+  if (!result.extraction_note) return;
+  const note = document.createElement("article");
+  note.className = "extraction-note";
+  const rawText = result.raw_text
+    ? `<p><b>Visible text:</b> ${escapeHtml(result.raw_text)}</p>`
+    : "";
+  const confidence = typeof result.extraction_confidence === "number"
+    ? `<p><b>Extraction confidence:</b> ${Math.round(result.extraction_confidence * 100)}%</p>`
+    : "";
+  note.innerHTML = `
+    <h3>Label could not be read clearly</h3>
+    <p>${escapeHtml(result.extraction_note)}</p>
+    ${rawText}
+    ${confidence}
+  `;
+  target.appendChild(note);
+}
+
 function renderVerification(result, target, verdictTarget = null, latencyTarget = null) {
   if (verdictTarget) {
     const approved = result.overall_verdict === "APPROVED";
@@ -164,6 +183,7 @@ function renderVerification(result, target, verdictTarget = null, latencyTarget 
   }
 
   target.innerHTML = "";
+  renderExtractionNote(result, target);
   result.results.forEach((item) => {
     const row = document.createElement("article");
     row.className = `result-row ${item.status === "PASS" ? "pass" : "fail"}`;

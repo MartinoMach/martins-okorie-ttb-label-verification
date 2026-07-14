@@ -55,6 +55,9 @@ class VerificationResult(BaseModel):
     results: list[FieldResult]
     overall_verdict: Literal["APPROVED", "NEEDS_REVIEW"]
     latency_ms: int = Field(default=0, ge=0)
+    extraction_note: str | None = None
+    raw_text: str | None = None
+    extraction_confidence: float | None = Field(default=None, ge=0, le=1)
 
 
 class BatchItemResult(BaseModel):

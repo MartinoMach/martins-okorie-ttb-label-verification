@@ -69,6 +69,9 @@ def test_verify_returns_full_result_with_latency_and_failure_details():
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
     assert isinstance(payload["latency_ms"], int)
+    assert payload["extraction_note"] is None
+    assert payload["raw_text"] == "sample label"
+    assert payload["extraction_confidence"] == 0.96
     warning = next(item for item in payload["results"] if item["field"] == "government_warning")
     assert warning["expected"] == CANONICAL_GOVERNMENT_WARNING
     assert warning["found"] == misread
@@ -156,6 +159,7 @@ def test_verify_vision_timeout_degrades_to_needs_review():
     assert response.status_code == 200
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert payload["extraction_note"] == "The label could not be read before the time limit. Try a clearer, closer photo."
     assert all(item["status"] == "FAIL" for item in payload["results"])
 
 
@@ -169,6 +173,7 @@ def test_verify_malformed_model_output_degrades_to_needs_review():
     assert response.status_code == 200
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert payload["extraction_note"] == "The label response could not be read reliably. Review the label photo manually."
     assert all(item["status"] == "FAIL" for item in payload["results"])
 
 
@@ -191,6 +196,21 @@ def test_partial_extraction_degrades_to_needs_review_without_crashing():
     assert response.status_code == 200
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert payload["extraction_note"] == "The label could not be read clearly. Try a closer, sharper photo."
+    assert all(item["status"] == "FAIL" for item in payload["results"])
+
+
+def test_blank_extraction_gets_explanatory_note():
+    client = client_with_fake(ExtractedLabel())
+    response = client.post(
+        "/verify",
+        data={"application_data": json.dumps(application_data())},
+        files={"image": ("label.png", image_bytes(), "image/png")},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["overall_verdict"] == "NEEDS_REVIEW"
+    assert payload["extraction_note"] == "The label text could not be read. Try a closer, sharper photo."
     assert all(item["status"] == "FAIL" for item in payload["results"])
 
 

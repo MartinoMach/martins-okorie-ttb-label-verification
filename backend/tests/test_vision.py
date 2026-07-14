@@ -9,7 +9,9 @@ from app.models import CANONICAL_GOVERNMENT_WARNING, ExtractedLabel
 from app.vision import (
     FakeVisionService,
     MALFORMED_OUTPUT_NOTE,
+    NO_OUTPUT_NOTE,
     VisionError,
+    build_responses_payload,
     parse_extracted_label,
     preprocess_image,
 )
@@ -64,9 +66,11 @@ def test_parse_extracted_label_degrades_malformed_json_to_reviewable_blank_extra
     assert result.extraction_confidence == 0.0
 
 
-def test_parse_extracted_label_rejects_missing_text_readably():
-    with pytest.raises(VisionError, match="no structured output"):
-        parse_extracted_label({"output": []})
+def test_parse_extracted_label_degrades_missing_text_to_reviewable_blank_extraction():
+    result = parse_extracted_label({"output": []})
+    assert result.brand_name is None
+    assert result.raw_text == NO_OUTPUT_NOTE
+    assert result.extraction_confidence == 0.0
 
 
 def test_preprocess_downscales_and_reencodes_image():
@@ -74,7 +78,14 @@ def test_preprocess_downscales_and_reencodes_image():
     assert mime_type == "image/jpeg"
     assert len(processed) > 0
     with Image.open(io.BytesIO(processed)) as image:
-        assert max(image.size) <= 1600
+        assert max(image.size) <= 1400
+
+
+def test_openai_payload_uses_high_detail_for_warning_fidelity():
+    payload = build_responses_payload(b"fake-jpeg", "image/jpeg", "gpt-4o-mini")
+    image_part = payload["input"][0]["content"][1]
+    assert image_part["type"] == "input_image"
+    assert image_part["detail"] == "high"
 
 
 def test_preprocess_rejects_non_image_readably():

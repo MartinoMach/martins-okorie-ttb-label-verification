@@ -46,6 +46,8 @@ def post_verify(client: httpx.Client, base_url: str, image_path: Path) -> dict[s
     assert_condition(payload.get("overall_verdict") in EXPECTED_VERDICTS, "/verify returned an invalid verdict")
     assert_condition(isinstance(payload.get("latency_ms"), int), "/verify missing integer latency_ms")
     assert_condition(len(payload.get("results", [])) == 7, "/verify results must include seven fields")
+    if payload.get("extraction_note") is not None:
+        assert_condition(isinstance(payload["extraction_note"], str), "/verify extraction_note must be text")
     fields = {item.get("field") for item in payload["results"]}
     assert_condition(fields == EXPECTED_FIELDS, f"/verify fields mismatch: {sorted(fields)}")
     return payload
@@ -99,6 +101,8 @@ def main() -> None:
             f"latency_ms={verify_payload['latency_ms']} "
             f"fields={len(verify_payload['results'])}"
         )
+        if verify_payload.get("extraction_note"):
+            print(f"verify extraction_note={verify_payload['extraction_note']}")
 
         batch_payload = post_batch(client, base_url, image_path)
         print(f"batch ok summary={batch_payload['summary']}")

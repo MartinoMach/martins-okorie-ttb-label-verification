@@ -11,6 +11,7 @@ from .models import ExtractedLabel
 from .settings import Settings, settings
 
 MALFORMED_OUTPUT_NOTE = "The model output could not be parsed. Review the label photo manually."
+NO_OUTPUT_NOTE = "The vision model returned no readable label text. Review the label photo manually."
 TIMEOUT_OUTPUT_NOTE = "The vision model timed out. Review the label photo manually."
 
 
@@ -36,31 +37,7 @@ class OpenAIVisionService:
             raise VisionError("Vision extraction is not configured. Set OPENAI_API_KEY on the backend.")
 
         processed, mime_type = preprocess_image(image_bytes, content_type)
-        encoded = base64.b64encode(processed).decode("ascii")
-        payload = {
-            "model": self.config.vision_model,
-            "input": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": extraction_prompt()},
-                        {
-                            "type": "input_image",
-                            "image_url": f"data:{mime_type};base64,{encoded}",
-                            "detail": "high",
-                        },
-                    ],
-                }
-            ],
-            "text": {
-                "format": {
-                    "type": "json_schema",
-                    "name": "extracted_ttb_label",
-                    "strict": True,
-                    "schema": extracted_label_schema(),
-                }
-            },
-        }
+        payload = build_responses_payload(processed, mime_type, self.config.vision_model)
         headers = {
             "Authorization": f"Bearer {self.config.openai_api_key}",
             "Content-Type": "application/json",
@@ -96,12 +73,40 @@ def preprocess_image(image_bytes: bytes, content_type: str) -> tuple[bytes, str]
     try:
         with Image.open(io.BytesIO(image_bytes)) as image:
             image = image.convert("RGB")
-            image.thumbnail((1600, 1600))
+            image.thumbnail((1400, 1400))
             output = io.BytesIO()
-            image.save(output, format="JPEG", quality=82, optimize=True)
+            image.save(output, format="JPEG", quality=78, optimize=True)
             return output.getvalue(), "image/jpeg"
     except UnidentifiedImageError as exc:
         raise VisionError("The uploaded file could not be read as an image.") from exc
+
+
+def build_responses_payload(processed_image: bytes, mime_type: str, model: str) -> dict[str, Any]:
+    encoded = base64.b64encode(processed_image).decode("ascii")
+    return {
+        "model": model,
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": extraction_prompt()},
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{mime_type};base64,{encoded}",
+                        "detail": "high",
+                    },
+                ],
+            }
+        ],
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "extracted_ttb_label",
+                "strict": True,
+                "schema": extracted_label_schema(),
+            }
+        },
+    }
 
 
 def extraction_prompt() -> str:
@@ -152,7 +157,7 @@ def parse_extracted_label(payload: dict[str, Any]) -> ExtractedLabel:
     if not text:
         text = _find_output_text(payload)
     if not text:
-        raise VisionError("Vision model returned no structured output.")
+        return ExtractedLabel(raw_text=NO_OUTPUT_NOTE, extraction_confidence=0.0)
     try:
         return ExtractedLabel.model_validate_json(text)
     except Exception:

@@ -30,6 +30,24 @@ function verificationResult() {
   };
 }
 
+function extractionFailureResult() {
+  return {
+    ...verificationResult(),
+    results: FIELD_NAMES.map((field) => ({
+      field,
+      match_type: field === "government_warning" ? "exact_case_sensitive" : "fuzzy",
+      expected: "expected",
+      found: null,
+      status: "FAIL",
+      detail: "missing",
+    })),
+    overall_verdict: "NEEDS_REVIEW",
+    extraction_note: "The label could not be read clearly. Try a closer, sharper photo.",
+    raw_text: "glared bottle",
+    extraction_confidence: 0.2,
+  };
+}
+
 function batchResult() {
   return {
     items: [
@@ -37,6 +55,16 @@ function batchResult() {
       { item_id: "Label 2", result: verificationResult(), error: null },
     ],
     summary: { passed: 2, needs_review: 0, total: 2 },
+  };
+}
+
+function batchExtractionFailureResult() {
+  return {
+    items: [
+      { item_id: "Label 1", result: extractionFailureResult(), error: null },
+      { item_id: "Label 2", result: verificationResult(), error: null },
+    ],
+    summary: { passed: 1, needs_review: 1, total: 2 },
   };
 }
 
@@ -56,6 +84,10 @@ function setupApp(fetchImpl) {
   window.fetch = fetchImpl;
   window.eval(app);
   return { dom, window };
+}
+
+function waitForRender() {
+  return new Promise((resolve) => setTimeout(resolve, 10));
 }
 
 function fillRow(window, row, index = 1) {
@@ -130,7 +162,7 @@ test("empty required single-label field blocks submit with a clear message", asy
     bubbles: true,
     cancelable: true,
   }));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await waitForRender();
 
   assert.equal(window.document.getElementById("formError").textContent, "Enter Brand name for Label 1.");
   assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify")), false);
@@ -155,10 +187,36 @@ test("empty numeric fields do not submit placeholder units", async () => {
     bubbles: true,
     cancelable: true,
   }));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await waitForRender();
 
   assert.equal(window.document.getElementById("formError").textContent, "Enter Alcohol by volume for Label 1.");
   assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify")), false);
+});
+
+test("single-label extraction note renders above field results", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new Response(JSON.stringify(extractionFailureResult()), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  await Promise.resolve();
+
+  fillRow(window, window.document.querySelector(".batch-row"));
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const note = window.document.querySelector("#singleResults .extraction-note");
+  assert.ok(note, "expected an extraction note");
+  assert.match(note.textContent, /The label could not be read clearly/);
+  assert.match(note.textContent, /Visible text:\s*glared bottle/);
+  assert.match(note.textContent, /Extraction confidence:\s*20%/);
 });
 
 test("two label cards post images and items to /verify/batch", async () => {
@@ -224,6 +282,34 @@ test("batch validation identifies the incomplete row and field", async () => {
     "Enter Country of origin for Label 2."
   );
   assert.equal(fetchCalls.some((call) => String(call.url).endsWith("/verify/batch")), false);
+});
+
+test("batch drill-down surfaces item extraction note", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new Response(JSON.stringify(batchExtractionFailureResult()), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  await Promise.resolve();
+
+  window.document.getElementById("addBatchRow").click();
+  const rows = [...window.document.querySelectorAll(".batch-row")];
+  fillRow(window, rows[0], 1);
+  fillRow(window, rows[1], 2);
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await waitForRender();
+
+  window.document.querySelector(".detail-toggle").click();
+  const note = window.document.querySelector("#batchResults .extraction-note");
+  assert.ok(note, "expected an extraction note in batch details");
+  assert.match(note.textContent, /The label could not be read clearly/);
 });
 
 test("cold-start loading copy appears after three seconds", async () => {
