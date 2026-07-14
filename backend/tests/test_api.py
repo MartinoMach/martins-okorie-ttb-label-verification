@@ -159,7 +159,10 @@ def test_verify_vision_timeout_degrades_to_needs_review():
     assert response.status_code == 200
     payload = response.json()
     assert payload["overall_verdict"] == "NEEDS_REVIEW"
-    assert payload["extraction_note"] == "The label could not be read before the time limit. Try a clearer, closer photo."
+    assert (
+        payload["extraction_note"]
+        == "The vision model did not respond before the time limit. Try again or use a smaller, cropped label image."
+    )
     assert payload["raw_text"] is None
     assert all(item["status"] == "FAIL" for item in payload["results"])
 

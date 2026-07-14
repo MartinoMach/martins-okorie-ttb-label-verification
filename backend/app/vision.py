@@ -73,7 +73,7 @@ def preprocess_image(image_bytes: bytes, content_type: str) -> tuple[bytes, str]
     try:
         with Image.open(io.BytesIO(image_bytes)) as image:
             image = image.convert("RGB")
-            image.thumbnail((1280, 1280))
+            image.thumbnail((1024, 1024))
             output = io.BytesIO()
             image.save(output, format="JPEG", quality=80, optimize=True)
             return output.getvalue(), "image/jpeg"

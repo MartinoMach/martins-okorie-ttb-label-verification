@@ -148,7 +148,7 @@ def _attach_extraction_metadata(
 
 def _extraction_note(extracted: ExtractedLabel) -> str | None:
     if extracted.raw_text == TIMEOUT_OUTPUT_NOTE:
-        return "The label could not be read before the time limit. Try a clearer, closer photo."
+        return "The vision model did not respond before the time limit. Try again or use a smaller, cropped label image."
     if extracted.raw_text == MALFORMED_OUTPUT_NOTE:
         return "The label response could not be read reliably. Review the label photo manually."
     if extracted.raw_text == NO_OUTPUT_NOTE:

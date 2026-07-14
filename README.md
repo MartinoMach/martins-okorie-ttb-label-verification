@@ -39,10 +39,10 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | Yes for real extraction | None | OpenAI API key for the Responses endpoint. |
-| `VISION_MODEL` | No | `gpt-4.1-mini` | OpenAI model used for high-detail label extraction. |
+| `VISION_MODEL` | No | `gpt-5.4-nano` | OpenAI model used for high-detail label extraction. |
 | `FRONTEND_ORIGINS` | No | `http://localhost:5173` | CORS allow-list for browser origins. |
 | `MAX_IMAGE_BYTES` | No | `8388608` | Per-image upload size cap in bytes. |
-| `VISION_TIMEOUT_SECONDS` | No | `4.5` | `httpx` timeout for the OpenAI request, set below the 5-second response target. |
+| `VISION_TIMEOUT_SECONDS` | No | `5` | `httpx` timeout for the OpenAI request, aligned to the 5-second response target. |
 | `BATCH_CONCURRENCY` | No | `3` | Semaphore limit for concurrent batch items. |
 | `BATCH_MAX_ITEMS` | No | `10` | Maximum labels accepted in one batch request. |
 
@@ -384,7 +384,7 @@ The project used Codex with the Plan / Review / Execute cadence described in `AG
 ## Assumptions And Limitations
 
 - Real extraction requires a valid `OPENAI_API_KEY` on the backend host.
-- `VISION_MODEL` defaults to `gpt-4.1-mini` and can be changed with an environment variable.
+- `VISION_MODEL` defaults to `gpt-5.4-nano` and can be changed with an environment variable.
 - Government-warning OCR/model mistakes intentionally return `NEEDS_REVIEW` and surface extracted text for manual inspection.
 - Unreadable, timed-out, or malformed extractions intentionally return `NEEDS_REVIEW` with an extraction note instead of hiding the cause behind only `Missing` field values.
 - Batch concurrency is bounded with `BATCH_CONCURRENCY` to reduce rate and cost pressure.

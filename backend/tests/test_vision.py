@@ -78,12 +78,12 @@ def test_preprocess_downscales_and_reencodes_image():
     assert mime_type == "image/jpeg"
     assert len(processed) > 0
     with Image.open(io.BytesIO(processed)) as image:
-        assert max(image.size) <= 1280
+        assert max(image.size) <= 1024
 
 
 def test_openai_payload_uses_high_detail_and_bounded_output_for_warning_fidelity():
-    payload = build_responses_payload(b"fake-jpeg", "image/jpeg", "gpt-4.1-mini")
-    assert payload["model"] == "gpt-4.1-mini"
+    payload = build_responses_payload(b"fake-jpeg", "image/jpeg", "gpt-5.4-nano")
+    assert payload["model"] == "gpt-5.4-nano"
     image_part = payload["input"][0]["content"][1]
     assert image_part["type"] == "input_image"
     assert image_part["detail"] == "high"
