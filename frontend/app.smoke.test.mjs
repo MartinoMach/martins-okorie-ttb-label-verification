@@ -243,6 +243,7 @@ test("single-label results hide latency and review another returns to a fresh fo
 
   assert.equal(form.hidden, true);
   assert.equal(window.document.getElementById("resultsView").hidden, false);
+  assert.equal(window.document.getElementById("verifyProgress").hidden, true);
   assert.equal(window.document.getElementById("singleSummary").textContent, "Field-by-field results are below.");
   assert.doesNotMatch(window.document.getElementById("singleVerdict").textContent, /Completed in \d+ ms/);
 
@@ -418,7 +419,7 @@ test("batch summary metrics use themed state accents", () => {
   );
 });
 
-test("cold-start loading copy appears after three seconds", async () => {
+test("single-label loading panel uses non-technical status copy", async () => {
   const { window } = setupApp(async (url) => {
     if (String(url).endsWith("/health")) {
       return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
@@ -432,12 +433,39 @@ test("cold-start loading copy appears after three seconds", async () => {
     bubbles: true,
     cancelable: true,
   }));
-  await new Promise((resolve) => setTimeout(resolve, 3100));
+  await waitForRender();
 
-  assert.match(
-    window.document.getElementById("verifyProgress").textContent,
-    /Backend waking up - Render free tier may take up to 30 seconds/
-  );
+  const progress = window.document.getElementById("verifyProgress");
+  assert.equal(progress.hidden, false);
+  assert.match(progress.textContent, /Reviewing label/);
+  assert.match(progress.textContent, /Reading the label and comparing it with the application record/);
+  assert.doesNotMatch(progress.textContent, /Render|free tier|waking up|cold start/i);
+});
+
+test("batch loading panel uses batch-specific copy", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new Promise(() => {});
+  });
+  await Promise.resolve();
+  window.document.getElementById("addBatchRow").click();
+  const rows = [...window.document.querySelectorAll(".batch-row")];
+  fillRow(window, rows[0], 1);
+  fillRow(window, rows[1], 2);
+
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await waitForRender();
+
+  const progress = window.document.getElementById("verifyProgress");
+  assert.equal(progress.hidden, false);
+  assert.match(progress.textContent, /Reviewing batch/);
+  assert.match(progress.textContent, /Reading the labels and comparing them with the application records/);
+  assert.doesNotMatch(progress.textContent, /Render|free tier|waking up|cold start/i);
 });
 
 test("verification network failures show a helpful service message", async () => {
@@ -456,10 +484,12 @@ test("verification network failures show a helpful service message", async () =>
   }));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
+  assert.equal(window.document.getElementById("verifyProgress").hidden, true);
   assert.equal(
     window.document.getElementById("formError").textContent,
     "Cannot reach the verification service. Check that the backend URL is configured and try again."
   );
+  assert.equal(window.document.activeElement, window.document.getElementById("formError"));
 });
 
 test("build config uses API_BASE_URL when provided", () => {

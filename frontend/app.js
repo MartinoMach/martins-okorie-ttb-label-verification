@@ -17,7 +17,9 @@ const batchResultsView = document.getElementById("batchResultsView");
 const batchRows = document.getElementById("batchRows");
 const rowTemplate = document.getElementById("batchRowTemplate");
 const submitButton = document.getElementById("submitButton");
-const COLD_START_MESSAGE = "Backend waking up - Render free tier may take up to 30 seconds on first request.";
+const verifyProgress = document.getElementById("verifyProgress");
+const loadingTitle = document.getElementById("loadingTitle");
+const loadingBody = document.getElementById("loadingBody");
 const NETWORK_ERROR_MESSAGE = "Cannot reach the verification service. Check that the backend URL is configured and try again.";
 
 function setCanonicalWarnings() {
@@ -142,16 +144,16 @@ function hideMessage(element) {
   element.hidden = true;
 }
 
-function startLoading(element, message) {
-  showMessage(element, message);
-  return window.setTimeout(() => {
-    showMessage(element, COLD_START_MESSAGE);
-  }, 3000);
+function startLoading(isBatch) {
+  loadingTitle.textContent = isBatch ? "Reviewing batch" : "Reviewing label";
+  loadingBody.textContent = isBatch
+    ? "Reading the labels and comparing them with the application records."
+    : "Reading the label and comparing it with the application record.";
+  verifyProgress.hidden = false;
 }
 
-function stopLoading(element, timer) {
-  window.clearTimeout(timer);
-  hideMessage(element);
+function stopLoading() {
+  verifyProgress.hidden = true;
 }
 
 async function readError(response) {
@@ -222,7 +224,7 @@ function resetToFreshForm() {
   });
   verifyForm.reset();
   hideMessage(document.getElementById("formError"));
-  hideMessage(document.getElementById("verifyProgress"));
+  stopLoading();
   document.getElementById("singleResults").innerHTML = "";
   document.getElementById("batchResults").innerHTML = "";
   document.getElementById("singleSummary").textContent = "Submit a label to see field-by-field results.";
@@ -310,7 +312,6 @@ async function submitBatch(rows) {
 verifyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const error = document.getElementById("formError");
-  const progress = document.getElementById("verifyProgress");
   const rows = [...batchRows.children];
   hideMessage(error);
   resultsView.hidden = true;
@@ -324,7 +325,7 @@ verifyForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  const loadingTimer = startLoading(progress, "Reading the label and comparing the application record.");
+  startLoading(rows.length > 1);
   submitButton.disabled = true;
   submitButton.textContent = rows.length > 1 ? "Verifying batch..." : "Verifying...";
 
@@ -338,8 +339,9 @@ verifyForm.addEventListener("submit", async (event) => {
     verifyForm.classList.remove("active");
   } catch (err) {
     showMessage(error, err.message);
+    error.focus();
   } finally {
-    stopLoading(progress, loadingTimer);
+    stopLoading();
     submitButton.disabled = false;
     updateSubmitButton();
   }

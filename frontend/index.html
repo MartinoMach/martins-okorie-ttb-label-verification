@@ -20,10 +20,18 @@
     <main class="shell">
       <section class="panel" aria-labelledby="title">
         <form id="verifyForm" class="view mode-panel active" aria-describedby="formError" novalidate>
-          <div id="formError" class="form-error" role="alert" hidden></div>
+          <div id="formError" class="form-error" role="alert" tabindex="-1" hidden></div>
           <div id="batchRows" class="batch-rows"></div>
           <button id="addBatchRow" class="secondary-button compact" type="button">Add another label</button>
-          <div id="verifyProgress" class="loading-message" role="status" hidden></div>
+          <div id="verifyProgress" class="loading-panel" role="status" aria-live="polite" hidden>
+            <div class="loading-card">
+              <div class="loading-ring" aria-hidden="true"></div>
+              <div>
+                <h2 id="loadingTitle">Reviewing label</h2>
+                <p id="loadingBody">Reading the label and comparing it with the application record.</p>
+              </div>
+            </div>
+          </div>
           <button id="submitButton" class="primary-button" type="submit">Verify label</button>
         </form>
 
