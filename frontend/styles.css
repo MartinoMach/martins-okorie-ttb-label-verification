@@ -466,9 +466,19 @@ button:disabled {
   border-left-color: var(--color-green);
 }
 
-.result-row.fail,
+.result-row.fail {
+  background: #fff8f0;
+  border-color: #f7b267;
+  border-left-color: var(--color-orange);
+}
+
 .batch-result-card.fail {
   background: #fff8f0;
+  border-color: var(--color-navy-dark);
+  border-left-color: var(--color-navy-dark);
+}
+
+.batch-drilldown .result-row.fail {
   border-color: #f7b267;
   border-left-color: var(--color-orange);
 }

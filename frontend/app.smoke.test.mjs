@@ -386,6 +386,18 @@ test("batch review another returns to one clean label card", async () => {
   assert.equal(window.document.activeElement, freshRows[0].querySelector('[name="batch_image"]'));
 });
 
+test("batch card exterior uses blue while nested failures stay orange", () => {
+  const styles = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+  assert.match(
+    styles,
+    /\.batch-result-card\.fail\s*\{[^}]*border-color:\s*var\(--color-navy-dark\);[^}]*border-left-color:\s*var\(--color-navy-dark\);[^}]*\}/s
+  );
+  assert.match(
+    styles,
+    /\.batch-drilldown \.result-row\.fail\s*\{[^}]*border-color:\s*#f7b267;[^}]*border-left-color:\s*var\(--color-orange\);[^}]*\}/s
+  );
+});
+
 test("cold-start loading copy appears after three seconds", async () => {
   const { window } = setupApp(async (url) => {
     if (String(url).endsWith("/health")) {
