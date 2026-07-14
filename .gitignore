@@ -19,4 +19,5 @@ coverage/
 htmlcov/
 *.log
 tmp/
+issues/
 
