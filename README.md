@@ -66,16 +66,25 @@ If every field shows `Found: Missing`, the label extraction likely timed out, re
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements-dev.txt
-cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
-For real local vision extraction, add a fresh OpenAI API key to `.env`:
+For real local vision extraction, add a fresh OpenAI API key to `backend/.env`:
 
 ```text
 OPENAI_API_KEY=your_new_key_here
 ```
 
 The previously exposed key should be revoked and replaced.
+
+Before running the backend locally, export the backend variables into your shell:
+
+```bash
+set -a
+. backend/.env
+set +a
+```
 
 ## Run Locally
 
@@ -90,7 +99,10 @@ Frontend:
 
 ```bash
 cd frontend
-API_BASE_URL=http://localhost:8000 npm run build
+set -a
+. .env
+set +a
+npm run build
 python3 -m http.server 5173
 ```
 
@@ -318,9 +330,10 @@ Vercel frontend:
 
 - Render gets `OPENAI_API_KEY`.
 - Vercel gets `API_BASE_URL`.
-- Local development can use `.env`.
-- `.env.example` contains placeholders only.
-- Never put an OpenAI API key in README, GitHub, Vercel, `render.yaml`, `.env.example`, or chat.
+- Local backend development can export values from `backend/.env`.
+- Local frontend builds can export values from `frontend/.env`.
+- `backend/.env.example` and `frontend/.env.example` contain placeholders only.
+- Never put an OpenAI API key in README, GitHub, Vercel, `render.yaml`, any `.env.example`, or chat.
 
 ## Tests And Submission Audit
 
@@ -346,14 +359,14 @@ git grep -n -E 'sk-[A-Za-z0-9_-]{20,}' -- ':!.venv'
 git grep -n -E 'AIza[0-9A-Za-z_-]{20,}' -- ':!.venv'
 git log --all -p -G 'sk-[A-Za-z0-9_-]{20,}'
 git log --all -p -G 'AIza[0-9A-Za-z_-]{20,}'
-git check-ignore .env
+git check-ignore backend/.env frontend/.env
 curl -sIL https://ttb-label-verification-frontend-mach-tino.vercel.app/
 curl https://ttb-label-verification-api-zgnb.onrender.com/health
 ```
 
 Expected results:
 
-- `.env` is ignored.
+- `backend/.env` and `frontend/.env` are ignored.
 - No OpenAI or Google-style API key pattern appears in committed source or git history.
 - Frontend URL returns a public page, not a Vercel SSO redirect.
 - Backend tests pass.
