@@ -14,6 +14,7 @@ const FIELD_NAMES = [
   "government_warning",
 ];
 const PRODUCTION_API_BASE_URL = "https://ttb-label-verification-api-zgnb.onrender.com";
+const CANONICAL_WARNING = "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.";
 
 function verificationResult() {
   return {
@@ -80,7 +81,9 @@ function setupApp(fetchImpl) {
   window.APP_CONFIG = { API_BASE_URL: "https://api.example.test" };
   window.URL.createObjectURL = () => "blob:label";
   window.URL.revokeObjectURL = () => {};
-  window.HTMLElement.prototype.scrollIntoView = () => {};
+  window.HTMLElement.prototype.scrollIntoView = function () {
+    this.dataset.scrolledIntoView = "true";
+  };
   window.fetch = fetchImpl;
   window.eval(app);
   return { dom, window };
@@ -219,6 +222,43 @@ test("single-label extraction note renders above field results", async () => {
   assert.match(note.textContent, /Extraction confidence:\s*20%/);
 });
 
+test("single-label results hide latency and review another returns to a fresh form", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new Response(JSON.stringify(verificationResult()), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  await Promise.resolve();
+
+  const form = window.document.getElementById("verifyForm");
+  const row = window.document.querySelector(".batch-row");
+  fillRow(window, row);
+
+  form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(form.hidden, true);
+  assert.equal(window.document.getElementById("resultsView").hidden, false);
+  assert.equal(window.document.getElementById("singleSummary").textContent, "Field-by-field results are below.");
+  assert.doesNotMatch(window.document.getElementById("singleVerdict").textContent, /Completed in \d+ ms/);
+
+  window.document.getElementById("resetButton").click();
+  const freshRows = [...window.document.querySelectorAll(".batch-row")];
+  assert.equal(form.hidden, false);
+  assert.equal(window.document.getElementById("resultsView").hidden, true);
+  assert.equal(window.document.getElementById("batchResultsView").hidden, true);
+  assert.equal(freshRows.length, 1);
+  assert.equal(freshRows[0].querySelector('[name="brand_name"]').value, "");
+  assert.equal(freshRows[0].querySelector('[name="government_warning"]').value, CANONICAL_WARNING);
+  assert.equal(freshRows[0].dataset.previewUrl, undefined);
+  assert.equal(form.dataset.scrolledIntoView, "true");
+  assert.equal(window.document.activeElement, freshRows[0].querySelector('[name="batch_image"]'));
+});
+
 test("two label cards post images and items to /verify/batch", async () => {
   const fetchCalls = [];
   const { window } = setupApp(async (url, options = {}) => {
@@ -310,6 +350,40 @@ test("batch drill-down surfaces item extraction note", async () => {
   const note = window.document.querySelector("#batchResults .extraction-note");
   assert.ok(note, "expected an extraction note in batch details");
   assert.match(note.textContent, /The label could not be read clearly/);
+});
+
+test("batch review another returns to one clean label card", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    return new Response(JSON.stringify(batchResult()), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+  await Promise.resolve();
+
+  window.document.getElementById("addBatchRow").click();
+  const rows = [...window.document.querySelectorAll(".batch-row")];
+  fillRow(window, rows[0], 1);
+  fillRow(window, rows[1], 2);
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await waitForRender();
+
+  assert.equal(window.document.getElementById("batchResultsView").hidden, false);
+  window.document.getElementById("batchResetButton").click();
+
+  const freshRows = [...window.document.querySelectorAll(".batch-row")];
+  assert.equal(window.document.getElementById("verifyForm").hidden, false);
+  assert.equal(window.document.getElementById("batchResultsView").hidden, true);
+  assert.equal(freshRows.length, 1);
+  assert.equal(freshRows[0].querySelector("legend").textContent, "Label 1");
+  assert.equal(freshRows[0].querySelector('[name="brand_name"]').value, "");
+  assert.equal(window.document.activeElement, freshRows[0].querySelector('[name="batch_image"]'));
 });
 
 test("cold-start loading copy appears after three seconds", async () => {

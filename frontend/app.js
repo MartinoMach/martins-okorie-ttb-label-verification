@@ -45,10 +45,15 @@ function resetRowPreview(row) {
     URL.revokeObjectURL(previewUrl);
     delete row.dataset.previewUrl;
   }
-  row.querySelector(".selected-file-name").textContent = "";
+  const selectedFileName = row.querySelector(".selected-file-name");
+  if (selectedFileName) {
+    selectedFileName.textContent = "";
+  }
   const preview = row.querySelector(".label-preview-image");
-  preview.removeAttribute("src");
-  preview.hidden = true;
+  if (preview) {
+    preview.removeAttribute("src");
+    preview.hidden = true;
+  }
 }
 
 function updateRowPreview(row, file) {
@@ -60,9 +65,14 @@ function updateRowPreview(row, file) {
   const previewUrl = URL.createObjectURL(file);
   row.dataset.previewUrl = previewUrl;
   const preview = row.querySelector(".label-preview-image");
-  preview.src = previewUrl;
-  preview.hidden = false;
-  row.querySelector(".selected-file-name").textContent = `${file.name} - ${formatFileSize(file.size)}`;
+  if (preview) {
+    preview.src = previewUrl;
+    preview.hidden = false;
+  }
+  const selectedFileName = row.querySelector(".selected-file-name");
+  if (selectedFileName) {
+    selectedFileName.textContent = `${file.name} - ${formatFileSize(file.size)}`;
+  }
 }
 
 window.addEventListener("beforeunload", () => {
@@ -172,14 +182,14 @@ function renderExtractionNote(result, target) {
   target.appendChild(note);
 }
 
-function renderVerification(result, target, verdictTarget = null, latencyTarget = null) {
+function renderVerification(result, target, verdictTarget = null, summaryTarget = null) {
   if (verdictTarget) {
     const approved = result.overall_verdict === "APPROVED";
     verdictTarget.className = `verdict-banner ${approved ? "approved" : "needs-review"}`;
     verdictTarget.querySelector("h2").textContent = approved ? "APPROVED" : "NEEDS REVIEW";
   }
-  if (latencyTarget) {
-    latencyTarget.textContent = `Completed in ${result.latency_ms} ms.`;
+  if (summaryTarget) {
+    summaryTarget.textContent = "Field-by-field results are below.";
   }
 
   target.innerHTML = "";
@@ -205,16 +215,31 @@ function renderVerification(result, target, verdictTarget = null, latencyTarget 
   });
 }
 
-document.getElementById("resetButton").addEventListener("click", () => {
+function resetToFreshForm() {
+  batchRows.querySelectorAll(".batch-row").forEach((row) => {
+    resetRowPreview(row);
+    row.remove();
+  });
   verifyForm.reset();
-  setCanonicalWarnings();
-  batchRows.querySelectorAll(".batch-row").forEach(resetRowPreview);
   hideMessage(document.getElementById("formError"));
+  hideMessage(document.getElementById("verifyProgress"));
+  document.getElementById("singleResults").innerHTML = "";
+  document.getElementById("batchResults").innerHTML = "";
+  document.getElementById("singleSummary").textContent = "Submit a label to see field-by-field results.";
   resultsView.hidden = true;
   batchResultsView.hidden = true;
   verifyForm.hidden = false;
   verifyForm.classList.add("active");
-});
+  addBatchRow();
+  setCanonicalWarnings();
+  submitButton.disabled = false;
+  updateSubmitButton();
+  verifyForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  batchRows.querySelector('[name="batch_image"]').focus();
+}
+
+document.getElementById("resetButton").addEventListener("click", resetToFreshForm);
+document.getElementById("batchResetButton").addEventListener("click", resetToFreshForm);
 
 function addBatchRow() {
   const row = rowTemplate.content.firstElementChild.cloneNode(true);
@@ -253,7 +278,7 @@ async function submitSingle(row) {
     await response.json(),
     document.getElementById("singleResults"),
     document.getElementById("singleVerdict"),
-    document.getElementById("singleLatency")
+    document.getElementById("singleSummary")
   );
   resultsView.hidden = false;
   resultsView.scrollIntoView({ behavior: "smooth", block: "start" });
