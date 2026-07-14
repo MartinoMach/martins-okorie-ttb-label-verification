@@ -21,7 +21,7 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 - OpenAI Responses API vision extraction with strict structured JSON output.
 - High-detail image input is used for OCR fidelity on the exact-match government warning.
 - Extraction failures and unreadable labels return `NEEDS_REVIEW` with a plain-English extraction note.
-- Image preprocessing that downscales and re-encodes uploads before model calls.
+- Image preprocessing that downscales to a 1280 px long edge and re-encodes uploads before model calls.
 - Stateless request handling with no database.
 - Tests that use a fake vision service so automated checks do not call the OpenAI API.
 
@@ -31,6 +31,7 @@ Backend health: [https://ttb-label-verification-api-zgnb.onrender.com/health](ht
 - Backend: Python 3.12+ FastAPI hosted on Render, with Render pinned to Python 3.12.8.
 - Vision service: OpenAI image input returning an `ExtractedLabel` schema.
 - Comparison engine: pure Python functions over typed Pydantic models.
+- Image preprocessing: RGB JPEG, 1280 px max dimension, quality 80.
 - Storage: none; each request is self-contained.
 - Secrets: environment variables only.
 
@@ -280,6 +281,17 @@ Latest measurement on July 13, 2026:
 
 Render cold starts can push the first request past 10 seconds. In this measured run, steady-state single-label responses stayed under the 5-second target.
 
+Latest real-vision check on July 14, 2026 with the ACME Reserve PNG sample:
+
+| Metric | Result |
+| --- | --- |
+| Preprocessing | 1280 px long edge, JPEG quality 80, high-detail model input |
+| API latency | `4807 ms` |
+| Overall verdict | `APPROVED` |
+| Field results | All seven fields `PASS`, including exact government warning |
+
+This sample confirmed that 1024 px was too aggressive for small boxed warning text and could misread `impairs` as `impair`. The current 1280 px setting gives the warning enough pixels while staying under the 5-second local real-vision check.
+
 ## Live Smoke Check
 
 Run the live checklist against the deployed Render API:
@@ -341,7 +353,7 @@ Run backend tests:
 
 ```bash
 cd backend
-../.venv/bin/pytest
+../.venv/bin/python -m pytest
 ```
 
 Run frontend smoke test:
@@ -379,7 +391,7 @@ The project used Codex with the Plan / Review / Execute cadence described in `AG
 - AI-assisted implementation: FastAPI endpoints, comparison helpers, vision-service structure, frontend wiring, deployment documentation, and regression tests were drafted with Codex and then reviewed in context.
 - Human-directed requirements: exact case-sensitive government warning behavior, required batch upload, under-five-second target, no database, and environment-variable-only secrets came from the project brief and were treated as hard constraints.
 - Human overrides: comparison stayed conservative with Python `SequenceMatcher` instead of broader token-set matching; Vercel deployment protection was disabled only after the live URL was proven to redirect to SSO; malformed model output was made reviewable instead of hiding partial extraction behind a 422.
-- Hand-reviewed areas: secret handling, deployment URLs, README audit steps, and the issue documents were checked manually against reviewer-facing requirements.
+- Hand-reviewed areas: secret handling, deployment URLs, README audit steps, comparison behavior, batch behavior, and vision OCR tuning were checked manually against reviewer-facing requirements.
 
 ## Assumptions And Limitations
 

@@ -73,7 +73,7 @@ def preprocess_image(image_bytes: bytes, content_type: str) -> tuple[bytes, str]
     try:
         with Image.open(io.BytesIO(image_bytes)) as image:
             image = image.convert("RGB")
-            image.thumbnail((1024, 1024))
+            image.thumbnail((1280, 1280))
             output = io.BytesIO()
             image.save(output, format="JPEG", quality=80, optimize=True)
             return output.getvalue(), "image/jpeg"
@@ -116,6 +116,9 @@ def extraction_prompt() -> str:
         "Fields: brand_name, class_type, abv, net_contents, producer, country_of_origin, "
         "government_warning, raw_text, extraction_confidence. Use null for unknown, missing, "
         "blurry, angled, glared, or uncertain fields; return partial data when possible. "
+        "brand_name is only the brand/proprietary name; do not include product category or "
+        "class words such as WHISKEY, BOURBON, VODKA, GIN, RUM, BEER, WINE, or TEQUILA when "
+        "they appear separately. Put full class/type wording in class_type. "
         "Copy government_warning verbatim exactly as printed, preserving case, punctuation, "
         "colon, parentheses, and wording. raw_text should be concise visible label text only. "
         "If the image is not a label, return null fields, concise raw_text, and low confidence."

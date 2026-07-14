@@ -12,6 +12,7 @@ from app.vision import (
     NO_OUTPUT_NOTE,
     VisionError,
     build_responses_payload,
+    extraction_prompt,
     parse_extracted_label,
     preprocess_image,
 )
@@ -78,7 +79,7 @@ def test_preprocess_downscales_and_reencodes_image():
     assert mime_type == "image/jpeg"
     assert len(processed) > 0
     with Image.open(io.BytesIO(processed)) as image:
-        assert max(image.size) <= 1024
+        assert max(image.size) <= 1280
 
 
 def test_openai_payload_uses_high_detail_and_bounded_output_for_warning_fidelity():
@@ -88,6 +89,13 @@ def test_openai_payload_uses_high_detail_and_bounded_output_for_warning_fidelity
     assert image_part["type"] == "input_image"
     assert image_part["detail"] == "high"
     assert payload["max_output_tokens"] == 650
+
+
+def test_extraction_prompt_separates_brand_from_class_words():
+    prompt = extraction_prompt()
+    assert "brand/proprietary name" in prompt
+    assert "do not include product category or class words" in prompt
+    assert "Put full class/type wording in class_type" in prompt
 
 
 def test_preprocess_rejects_non_image_readably():
