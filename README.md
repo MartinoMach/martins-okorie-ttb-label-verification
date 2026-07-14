@@ -269,6 +269,7 @@ Render backend:
 - Uses `render.yaml`.
 - Keeps `PYTHON_VERSION=3.12.8` to match the Python 3.12+ project requirement.
 - Stores `OPENAI_API_KEY` as a secret environment variable in Render only.
+- Sets `FRONTEND_ORIGINS=https://ttb-label-verification-frontend-zgnb.vercel.app` for deployed browser CORS.
 - Runs `pip install -r requirements.txt`.
 - Starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 

@@ -15,7 +15,7 @@ services:
       - key: VISION_MODEL
         value: gpt-4o-mini
       - key: FRONTEND_ORIGINS
-        value: http://localhost:5173
+        value: https://ttb-label-verification-frontend-zgnb.vercel.app
       - key: MAX_IMAGE_BYTES
         value: "8388608"
       - key: VISION_TIMEOUT_SECONDS
