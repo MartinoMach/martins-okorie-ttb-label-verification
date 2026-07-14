@@ -6,7 +6,7 @@ Proof-of-concept web app for checking alcohol label images against structured TT
 
 Public repo: [https://github.com/MartinoMach/martins-okorie-ttb-label-verification](https://github.com/MartinoMach/martins-okorie-ttb-label-verification)
 
-Live frontend: [https://ttb-label-verification-frontend-zgnb.vercel.app/](https://ttb-label-verification-frontend-zgnb.vercel.app/)
+Live frontend: [https://ttb-label-verification-frontend-mach-tino.vercel.app/](https://ttb-label-verification-frontend-mach-tino.vercel.app/)
 
 Backend API: [https://ttb-label-verification-api-zgnb.onrender.com](https://ttb-label-verification-api-zgnb.onrender.com)
 
@@ -269,7 +269,7 @@ Render backend:
 - Uses `render.yaml`.
 - Keeps `PYTHON_VERSION=3.12.8` to match the Python 3.12+ project requirement.
 - Stores `OPENAI_API_KEY` as a secret environment variable in Render only.
-- Sets `FRONTEND_ORIGINS=https://ttb-label-verification-frontend-zgnb.vercel.app` for deployed browser CORS.
+- Sets `FRONTEND_ORIGINS=https://ttb-label-verification-frontend-mach-tino.vercel.app` for deployed browser CORS.
 - Runs `pip install -r requirements.txt`.
 - Starts with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 
@@ -314,7 +314,7 @@ git grep -n -E 'AIza[0-9A-Za-z_-]{20,}' -- ':!.venv'
 git log --all -p -G 'sk-[A-Za-z0-9_-]{20,}'
 git log --all -p -G 'AIza[0-9A-Za-z_-]{20,}'
 git check-ignore .env
-curl -sIL https://ttb-label-verification-frontend-zgnb.vercel.app/
+curl -sIL https://ttb-label-verification-frontend-mach-tino.vercel.app/
 curl https://ttb-label-verification-api-zgnb.onrender.com/health
 ```
 
