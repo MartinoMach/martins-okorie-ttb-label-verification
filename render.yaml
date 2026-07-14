@@ -22,3 +22,5 @@ services:
         value: "4.2"
       - key: BATCH_CONCURRENCY
         value: "3"
+      - key: BATCH_MAX_ITEMS
+        value: "10"

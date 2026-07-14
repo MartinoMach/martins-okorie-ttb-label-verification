@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 
@@ -12,6 +13,7 @@ const FIELD_NAMES = [
   "country_of_origin",
   "government_warning",
 ];
+const PRODUCTION_API_BASE_URL = "https://ttb-label-verification-api-zgnb.onrender.com";
 
 function verificationResult() {
   return {
@@ -164,4 +166,42 @@ test("cold-start loading copy appears after three seconds", async () => {
     window.document.getElementById("verifyProgress").textContent,
     /Backend waking up - Render free tier may take up to 30 seconds/
   );
+});
+
+test("verification network failures show a helpful service message", async () => {
+  const { window } = setupApp(async (url) => {
+    if (String(url).endsWith("/health")) {
+      return new window.Response(JSON.stringify({ status: "ok" }), { status: 200 });
+    }
+    throw new TypeError("Failed to fetch");
+  });
+  await Promise.resolve();
+  fillRow(window, window.document.querySelector(".batch-row"));
+
+  window.document.getElementById("verifyForm").dispatchEvent(new window.Event("submit", {
+    bubbles: true,
+    cancelable: true,
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(
+    window.document.getElementById("formError").textContent,
+    "Cannot reach the verification service. Check that the backend URL is configured and try again."
+  );
+});
+
+test("Vercel build config defaults to the deployed Render API", () => {
+  const configUrl = new URL("./config.js", import.meta.url);
+  const originalConfig = readFileSync(configUrl, "utf8");
+  try {
+    execFileSync("node", ["build-config.mjs"], {
+      cwd: new URL(".", import.meta.url),
+      env: { ...process.env, VERCEL: "1", API_BASE_URL: "" },
+    });
+    const generatedConfig = readFileSync(configUrl, "utf8");
+    assert.match(generatedConfig, new RegExp(PRODUCTION_API_BASE_URL.replaceAll(".", "\\.")));
+    assert.doesNotMatch(generatedConfig, /http:\/\/localhost:8000/);
+  } finally {
+    writeFileSync(configUrl, originalConfig);
+  }
 });

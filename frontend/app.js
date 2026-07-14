@@ -18,6 +18,7 @@ const batchRows = document.getElementById("batchRows");
 const rowTemplate = document.getElementById("batchRowTemplate");
 const submitButton = document.getElementById("submitButton");
 const COLD_START_MESSAGE = "Backend waking up - Render free tier may take up to 30 seconds on first request.";
+const NETWORK_ERROR_MESSAGE = "Cannot reach the verification service. Check that the backend URL is configured and try again.";
 
 function setCanonicalWarnings() {
   document.querySelectorAll('[name="government_warning"]').forEach((input) => {
@@ -205,7 +206,12 @@ async function submitSingle(row) {
   const data = new FormData();
   data.append("image", image);
   data.append("application_data", JSON.stringify(collectApplicationData(row)));
-  const response = await fetch(`${API_BASE_URL}/verify`, { method: "POST", body: data });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/verify`, { method: "POST", body: data });
+  } catch (error) {
+    throw new Error(NETWORK_ERROR_MESSAGE);
+  }
   if (!response.ok) throw new Error(await readError(response));
   renderVerification(
     await response.json(),
@@ -229,7 +235,12 @@ async function submitBatch(rows) {
     };
   });
   data.append("items", JSON.stringify(items));
-  const response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/verify/batch`, { method: "POST", body: data });
+  } catch (error) {
+    throw new Error(NETWORK_ERROR_MESSAGE);
+  }
   if (!response.ok) throw new Error(await readError(response));
   renderBatch(await response.json());
   batchResultsView.hidden = false;
