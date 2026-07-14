@@ -419,6 +419,14 @@ test("batch summary metrics use themed state accents", () => {
   );
 });
 
+test("primary verify action has breathing room after secondary actions", () => {
+  const styles = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+  assert.match(
+    styles,
+    /\.primary-button\s*\{[^}]*margin-top:\s*var\(--space-6\);[^}]*\}/s
+  );
+});
+
 test("single-label loading panel uses non-technical status copy", async () => {
   const { window } = setupApp(async (url) => {
     if (String(url).endsWith("/health")) {
